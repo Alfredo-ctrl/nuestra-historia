@@ -29,7 +29,7 @@ const FIRST_MEMORY = {
 // ══════════════════════════════════════════
 const UNLOCK_TIMESTAMPS = [
   { date: "2026-02-14", ts: 0 }, // Primer recuerdo: auto-intro
-  { date: "2026-02-16", ts: new Date("2026-02-16T11:11:00").getTime() },
+  { date: "2026-02-16", ts: new Date("2026-02-16T11:11:00").getTime() }, // 11:11 AM of today
   { date: "2026-02-18", ts: new Date("2026-02-18T11:11:00").getTime() },
   { date: "2026-02-20", ts: new Date("2026-02-20T11:11:00").getTime() },
   { date: "2026-02-22", ts: new Date("2026-02-22T11:11:00").getTime() },
@@ -60,13 +60,13 @@ const MEMORIES = [
   },
   {
     date: "2026-02-16",
-    type: "photo",
-    title: "Nuestro primer recuerdo",
-    text: "¿Recuerdas este momento? El tiempo se detuvo y solo existíamos tú y yo.",
-    media: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+    type: "game",
+    title: "Vuelo de Recuerdos",
+    text: "¡Juega para recolectar monedas y desbloquear fotos especiales en la tienda!",
+    media: null,
     special: false,
-    hint: "Una imagen que vale más que mil palabras…",
-    hintMedia: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+    hint: "Un juego especial te espera...",
+    hintMedia: "https://res.cloudinary.com/demo/image/upload/sample.jpg", 
   },
   {
     date: "2026-02-18",
@@ -139,6 +139,45 @@ const MEMORIES = [
     hintMedia: null,
   },
 ];
+
+// ══════════════════════════════════════════
+// TIENDA DE RECUERDOS — FOTOS DESBLOQUEABLES
+// ══════════════════════════════════════════
+const SHOP_PHOTOS = [
+    { id: "shop1", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215657/WhatsApp_Image_2026-02-15_at_10.08.08_PM_wghi7u.jpg", title: "Mini Freddy 1" },
+    { id: "shop2", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215657/WhatsApp_Image_2026-02-15_at_10.10.08_PM_p4038w.jpg", title: "Mini Freddy 2" },
+    { id: "shop3", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215657/WhatsApp_Image_2026-02-15_at_10.11.40_PM_yqqasn.jpg", title: "Mini Freddy 3" },
+    { id: "shop4", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215657/WhatsApp_Image_2026-02-15_at_10.10.26_PM_ov0gqk.jpg", title: "Mini Freddy 4" },
+    { id: "shop5", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.12.50_PM_m9gzfq.jpg", title: "Mini Freddy 5" },
+    { id: "shop6", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.11.57_PM_d7vyxy.jpg", title: "Mini Freddy 6" },
+    { id: "shop7", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.09.42_PM_rll549.jpg", title: "Mini Freddy 7" },
+    { id: "shop8", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.12.29_PM_nkwpun.jpg", title: "Mini Freddy 8" },
+    { id: "shop9", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.13.15_PM_sdd7c8.jpg", title: "Mini Freddy 9" },
+    { id: "shop10", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.09.53_PM_j8vwhq.jpg", title: "Mini Freddy 10" },
+];
+
+// STATE
+let gameCoins = 0;
+let unlockedShopItems = [];
+let gameActive = false;
+let gameRaf = null;
+
+// INIT Load
+function loadGameState() {
+  const savedCoins = localStorage.getItem("minigame_coins");
+  if (savedCoins !== null) gameCoins = parseInt(savedCoins);
+
+  const savedItems = localStorage.getItem("minigame_unlocked_items");
+  if (savedItems) unlockedShopItems = JSON.parse(savedItems);
+
+  // Starter Gift V2 - Reset for price change
+  if (localStorage.getItem("minigame_starterGiven_v2") !== "true") {
+      gameCoins = 11; // Reset to 11 coins for fair start with new prices
+      localStorage.setItem("minigame_starterGiven_v2", "true");
+      localStorage.setItem("minigame_coins", gameCoins);
+  }
+}
+loadGameState();
 
 /* =========================
    GALERÍA DE RECUERDOS (Portada)
@@ -510,7 +549,8 @@ function isUnlockWindowOpen(date) {
   const entry = UNLOCK_TIMESTAMPS.find(e => e.date === date);
   if (!entry || entry.ts === 0) return false; // First memory is auto
   const now = Date.now();
-  return now >= entry.ts && now < entry.ts + 60000; // 60-second window
+  // TEST: Extended window (1 hour) instead of 1 minute (60000)
+  return now >= entry.ts && now < entry.ts + 3600000; 
 }
 
 // Check if the unlock timestamp has been reached (date's 11:11 has passed)
@@ -680,6 +720,9 @@ function renderUnlockedBody(card, memory) {
 
   card.addEventListener("click", (e) => {
     if (e.target.tagName === "VIDEO" || e.target.tagName === "AUDIO" || e.target.tagName === "BUTTON") return;
+    // Don't open lightbox if this is a game or special type that handles its own clicks
+    if (type === "game") return;
+
     openGalleryLightbox({
       title: title,
       text: text,
@@ -716,10 +759,579 @@ function renderUnlockedBody(card, memory) {
       body.appendChild(audioWrap);
     }
   }
+    
+  // ── GAME LOGIC HOOK ──
+  if (type === "game") {
+      renderGameMemory(body, memory);
+  }
+
   card.appendChild(body);
 }
 
-// ── Locked with unlock area (timestamp reached, not yet unlocked) ──
+// ══════════════════════════════════════════
+// MINI-JUEGO: VUELO DE RECUERDOS (FINAL)
+// ══════════════════════════════════════════
+
+let gameInstance = null; 
+
+function renderGameMemory(container, memory) {
+    container.innerHTML = "";
+    
+    // UI Wrapper
+    const gameWrapper = document.createElement("div");
+    gameWrapper.className = "game-wrapper";
+    
+    // Header Stats (Coins + Shop)
+    const statsBar = document.createElement("div");
+    statsBar.className = "game-stats";
+    statsBar.innerHTML = `
+        <div class="coin-display">🪙 <span id="game-coin-count">${gameCoins}</span></div>
+        <div class="game-actions">
+             <button class="shop-btn-trigger">🛍️ Tienda</button>
+        </div>
+    `;
+    gameWrapper.appendChild(statsBar);
+
+    // Canvas Container
+    const canvasContainer = document.createElement("div");
+    canvasContainer.className = "game-canvas-container";
+    
+    const canvas = document.createElement("canvas");
+    canvas.id = "game-canvas";
+    canvas.width = 600; 
+    canvas.height = 300;
+    canvasContainer.appendChild(canvas);
+    
+    // Static Instructions (Under canvas)
+    const instructions = document.createElement("div");
+    instructions.className = "game-instructions";
+    instructions.innerHTML = `<small>Toca para volar • Esquiva postes • Recoge monedas</small>`;
+    
+    // Overlays
+    const startOverlay = document.createElement("div");
+    startOverlay.className = "game-overlay game-start-overlay";
+    startOverlay.innerHTML = `
+        <div class="overlay-content">
+            <p>Toca para volar 💜</p>
+            <button class="btn-play">Jugar</button>
+        </div>
+    `;
+    canvasContainer.appendChild(startOverlay);
+
+    const gameOverOverlay = document.createElement("div");
+    gameOverOverlay.className = "game-overlay game-over-overlay";
+    gameOverOverlay.style.display = "none";
+    gameOverOverlay.innerHTML = `
+        <div class="overlay-content">
+            <p>¡Auch!</p>
+            <button class="btn-restart">Intentar de nuevo</button>
+            <button class="btn-shop-over" style="margin-top: 10px; background: #8b5cf6;">🛍️ Ir a la Tienda</button>
+        </div>
+    `;
+    canvasContainer.appendChild(gameOverOverlay);
+    
+    gameWrapper.appendChild(canvasContainer);
+    gameWrapper.appendChild(instructions); 
+    container.appendChild(gameWrapper);
+
+    // Context & State
+    const ctx = canvas.getContext("2d");
+    let animationFrameId;
+    let isPlaying = false;
+    let gameSpeed = 1.5;
+    let gravity = 0.25;
+    let lift = -4.5;
+    
+    let player = { x: 50, y: 150, vy: 0, r: 12 };
+    let obstacles = [];
+    let coinsArray = [];
+
+    function resetGame() {
+        player = { x: 50, y: canvas.height / 2, vy: 0, r: 12 };
+        obstacles = [];
+        coinsArray = [];
+        isPlaying = true;
+        window.isGameRunning = true; // Pause background particles
+        gameOverOverlay.style.display = "none";
+        startOverlay.style.display = "none";
+        animate();
+    }
+
+    function spawnObstacle() {
+        const gapHeight = 110; 
+        const minHeight = 40;
+        const availableSpace = canvas.height - gapHeight - (minHeight * 2);
+        const topHeight = minHeight + Math.random() * availableSpace;
+        
+        obstacles.push({
+            x: canvas.width,
+            w: 30,
+            hTop: topHeight,
+            hBottom: canvas.height - topHeight - gapHeight,
+            passed: false
+        });
+    }
+
+    function spawnCoin() {
+         const y = 40 + Math.random() * (canvas.height - 80);
+         // MODIFIED: Larger coins (r: 14) for better visibility
+         coinsArray.push({ x: canvas.width, y: y, r: 14, collected: false }); 
+    }
+
+    function gameOver() {
+        isPlaying = false;
+        window.isGameRunning = false; // Resume background particles
+        cancelAnimationFrame(animationFrameId);
+        gameOverOverlay.style.display = "flex";
+    }
+
+    function animate() {
+        if (!isPlaying) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Background
+        ctx.fillStyle = "#1a1a2e";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Player Physics
+        player.vy += gravity;
+        player.y += player.vy;
+
+        // Floor/Ceiling collision - NO DEATH, JUST CLAMP
+        if (player.y + player.r >= canvas.height) {
+            player.y = canvas.height - player.r;
+            player.vy = 0;
+        }
+        if (player.y - player.r <= 0) {
+            player.y = player.r;
+            player.vy = 0;
+        }
+
+        // Draw Player (OPTIMIZATION: simple circle instead of text)
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+        ctx.fillStyle = "#a855f7"; // Purple
+        ctx.fill();
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "#a855f7";
+        ctx.fill();
+        ctx.shadowBlur = 0; // Reset
+        
+        // Inner detail
+        ctx.beginPath();
+        ctx.arc(player.x - 3, player.y - 3, 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255,255,255,0.4)";
+        ctx.fill();
+
+
+        // Spawners
+        if (options.obstacleTimer-- <= 0) {
+            spawnObstacle();
+            options.obstacleTimer = 180;
+        }
+        if (options.coinTimer-- <= 0) {
+            spawnCoin();
+            // MODIFIED: More frequent coins (every 50-120 frames instead of 100-300)
+            options.coinTimer = 50 + Math.random() * 70; 
+        }
+
+        // Obstacles Logic
+        ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let obs = obstacles[i];
+            obs.x -= gameSpeed;
+
+            // Draw Top
+            ctx.fillRect(obs.x, 0, obs.w, obs.hTop);
+            // Draw Bottom
+            ctx.fillRect(obs.x, canvas.height - obs.hBottom, obs.w, obs.hBottom);
+
+            // Collision Detection
+            const pLeft = player.x - player.r + 4;
+            const pRight = player.x + player.r - 4;
+            const pTop = player.y - player.r + 4;
+            const pBottom = player.y + player.r - 4;
+
+            // Top Pipe
+            if (pRight > obs.x && pLeft < obs.x + obs.w && pTop < obs.hTop) {
+                gameOver();
+                return;
+            }
+            // Bottom Pipe
+            if (pRight > obs.x && pLeft < obs.x + obs.w && pBottom > canvas.height - obs.hBottom) {
+                gameOver();
+                return;
+            }
+
+            // Remove off-screen
+            if (obs.x + obs.w < 0) {
+                obstacles.splice(i, 1);
+            }
+        }
+
+        // Coins Logic
+        for (let i = coinsArray.length - 1; i >= 0; i--) {
+            let coin = coinsArray[i];
+            coin.x -= gameSpeed;
+
+            // Draw Coin
+            if (!coin.collected) {
+                ctx.beginPath();
+                ctx.arc(coin.x, coin.y, coin.r, 0, Math.PI * 2);
+                ctx.fillStyle = "gold";
+                ctx.fill();
+                ctx.strokeStyle = "orange";
+                ctx.lineWidth = 2; // Thicker border
+                ctx.stroke();
+                ctx.lineWidth = 1;
+                
+                ctx.fillStyle = "black";
+                ctx.font = "bold 14px sans-serif"; // Bigger text
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("$", coin.x, coin.y + 1);
+            }
+
+            // Collection
+            const dx = player.x - coin.x;
+            const dy = player.y - coin.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            
+            if (!coin.collected && dist < player.r + coin.r) {
+                 coin.collected = true;
+                 gameCoins++;
+                 updateCoinDisplay();
+                 localStorage.setItem("minigame_coins", gameCoins);
+            }
+
+            if (coin.x + coin.r < 0) {
+                coinsArray.splice(i, 1);
+            }
+        }
+
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    // Controls
+    let options = { obstacleTimer: 0, coinTimer: 50 };
+
+    const jump = (e) => {
+        e.stopPropagation(); 
+        if (!isPlaying) return;
+        if (e.type === 'touchstart') e.preventDefault(); 
+        player.vy = lift;
+    };
+
+    canvas.addEventListener("mousedown", jump);
+    canvas.addEventListener("touchstart", jump, {passive: false});
+    canvas.addEventListener("click", (e) => e.stopPropagation());
+
+    // Button Listeners
+    startOverlay.querySelector(".btn-play").onclick = (e) => {
+        e.stopPropagation();
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        resetGame();
+    };
+
+    gameOverOverlay.querySelector(".btn-restart").onclick = (e) => {
+        e.stopPropagation();
+        resetGame();
+    };
+    
+    // Shop button in game over
+    gameOverOverlay.querySelector(".btn-shop-over").onclick = (e) => {
+        e.stopPropagation();
+        openShopModal();
+    };
+
+    statsBar.querySelector(".shop-btn-trigger").addEventListener("click", (e) => {
+        e.stopPropagation();
+        if(isPlaying) { isPlaying = false; cancelAnimationFrame(animationFrameId); }
+        openShopModal();
+    });
+
+    // CRITICAL: Stop propagation on wrapper to prevent memory card click
+    gameWrapper.addEventListener("click", (e) => { e.stopPropagation(); });
+    gameWrapper.addEventListener("mousedown", (e) => { e.stopPropagation(); });
+    gameWrapper.addEventListener("touchstart", (e) => { e.stopPropagation(); });
+}
+// END GAME LOGIC
+
+let player = {}; // Placeholder to avoid errors if referenced elsewhere (unlikely)
+let obstacles = [];
+let coins = [];
+
+function stopGame() {
+   // Legacy stub
+}
+
+function updateCoinDisplay() {
+    const el = document.getElementById("game-coin-count");
+    if (el) el.textContent = gameCoins;
+}
+
+// ══════════════════════════════════════════
+// SHOP SYSTEM
+// ══════════════════════════════════════════
+
+function openShopModal() {
+    // Ensure game is paused if active
+    if (typeof stopGame === "function") stopGame();
+    
+    // Create/Reuse Modal
+    let modal = document.getElementById("shop-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "shop-modal";
+        modal.className = "shop-modal";
+        document.body.appendChild(modal);
+    }
+    
+    // Build Items HTML
+    let itemsHtml = '';
+    SHOP_PHOTOS.forEach(item => {
+        const isUnlocked = unlockedShopItems.includes(item.id);
+        
+        let buttonHtml;
+        if (isUnlocked) {
+             buttonHtml = `<button class="btn-direct-view" onclick="event.stopPropagation(); window.viewShopItem('${item.id}')">Ver Foto 👁️</button>`;
+        } else {
+             // FORCE VISIBILITY STYLES INLINE
+             buttonHtml = `<button class="btn-direct-buy" style="display:block !important; visibility:visible !important; opacity:1 !important;" onclick="event.stopPropagation(); window.confirmBuy('${item.id}')">Desbloquear (${item.price} 🪙)</button>`;
+        }
+
+        itemsHtml += `
+            <div class="shop-item ${isUnlocked ? 'unlocked' : 'locked'}" data-id="${item.id}">
+                <div class="shop-item-img">
+                    <img src="${item.url}" class="${isUnlocked ? '' : 'blur'}" loading="lazy" decoding="async">
+                    ${!isUnlocked ? '<div class="lock-overlay">🔒</div>' : ''}
+                </div>
+                <div class="shop-item-info" style="display:flex; flex-direction:column; gap:8px;">
+                    <span style="font-weight:bold;">${item.title}</span>
+                    <div style="margin-top:5px; width:100%;">
+                        ${buttonHtml}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    // Content
+    modal.innerHTML = `
+        <div class="shop-content">
+            <div class="shop-header">
+                <h2>Tienda de Recuerdos</h2>
+                <div class="shop-coins">🪙 ${gameCoins}</div>
+                <button class="shop-close">✕</button>
+            </div>
+            <div class="shop-grid">
+                ${itemsHtml}
+            </div>
+            <div style="padding: 1rem; text-align: center; color: #888; font-size: 0.8rem;">
+                Si las imágenes no abren, usa el botón directo de arriba.
+            </div>
+        </div>
+    `;
+    
+    modal.classList.add("active");
+    
+    // Attach Listeners
+    modal.querySelector(".shop-close").onclick = () => {
+        modal.classList.remove("active");
+    };
+
+    // ITEM CLICK LISTENERS (Fallback)
+    const items = modal.querySelectorAll(".shop-item");
+    items.forEach(item => {
+        item.addEventListener("click", (e) => {
+            // Only trigger if not clicking button to avoid double fire
+            if(e.target.tagName !== "BUTTON") {
+                const id = item.getAttribute("data-id");
+                window.shopItemClick(id); 
+            }
+        });
+    });
+}
+
+// Handler for shop item clicks - EXPLICITLY GLOBAL
+window.shopItemClick = function(id) {
+    if(!id) return;
+    const item = SHOP_PHOTOS.find(p => p.id === id);
+    if (!item) return;
+
+    if (unlockedShopItems.includes(id)) {
+        // Already unlocked -> View
+        try { window.viewShopItem(id); } catch(e) { console.error("View item error:", e); }
+    } else {
+        // Locked -> Confirm Buy
+        try { openShopDetailsModal(item); } catch(e) { console.error("Open details error:", e); }
+    }
+};
+
+window.shopItemClickDebug = function() { alert("Click handler is active"); };
+
+// Details Modal - Global Function
+window.openShopDetailsModal = function(item) {
+    // A secondary modal for confirmation
+    let details = document.getElementById("shop-details");
+    if (details) {
+        details.remove(); // Clean slate to avoid old event listeners or state
+    }
+    
+    details = document.createElement("div");
+    details.id = "shop-details";
+    details.className = "shop-details-modal";
+    document.body.appendChild(details);
+    
+    details.innerHTML = `
+        <div class="shop-details-content">
+            <button class="details-close">✕</button>
+            <h3>${item.title}</h3>
+            <div class="details-img-wrapper">
+                <img src="${item.url}" class="details-img blur">
+                <div class="lock-overlay">🔒</div>
+            </div>
+            <p class="details-price">Costo: <span>${item.price} 🪙</span></p>
+            <button class="btn-confirm-buy" data-id="${item.id}">
+                Desbloquear
+            </button>
+        </div>
+    `;
+    
+    // Animation frame to ensure DOM is ready for transition
+    requestAnimationFrame(() => details.classList.add("active"));
+    
+    // Close button
+    details.querySelector(".details-close").onclick = () => {
+        details.classList.remove("active");
+        setTimeout(() => details.remove(), 300); // Remove after transition
+    };
+
+    // Confirm button
+    details.querySelector(".btn-confirm-buy").onclick = () => {
+        window.confirmBuy(item.id);
+    };
+};
+
+// Confirm logic
+window.confirmBuy = function(id) {
+    const item = SHOP_PHOTOS.find(p => p.id === id);
+    if (!item) return;
+
+    // Check balance
+    if (gameCoins >= item.price) {
+        // Close details modal first
+        const details = document.getElementById("shop-details");
+        if(details) details.classList.remove("active");
+        
+        // Execute buy logic
+        gameCoins -= item.price;
+        unlockedShopItems.push(id);
+        
+        // Save
+        localStorage.setItem("minigame_coins", gameCoins);
+        localStorage.setItem("minigame_unlocked_items", JSON.stringify(unlockedShopItems));
+        
+        // Refresh UI
+        openShopModal(); // Refresh main list to show unlocked state
+        updateCoinDisplay();
+        
+        // Animation
+        showShopReveal(id);
+    } else {
+        alert("¡No tienes suficientes monedas!");
+    }
+};
+// Global functions for inline onclicks - EXPOSED TO WINDOW
+window.buyItem = function(id, price) {
+    if (gameCoins >= price) {
+        // Debounce simple check
+        if(unlockedShopItems.includes(id)) {
+             try { window.viewShopItem(id); } catch(e){}
+             return;
+        }
+
+        gameCoins -= price;
+        unlockedShopItems.push(id);
+        
+        // Save
+        localStorage.setItem("minigame_coins", gameCoins);
+        localStorage.setItem("minigame_unlocked_items", JSON.stringify(unlockedShopItems));
+        
+        // Refresh UI
+        // Force small delay to allow state update if needed, though sync is fine
+        openShopModal(); 
+        updateCoinDisplay();
+        
+        // Show Reveal
+        showShopReveal(id);
+    } else {
+        // Show a custom toast or alert
+        const modal = document.getElementById("shop-modal");
+        const existingAlert = modal.querySelector(".shop-alert");
+        if(existingAlert) existingAlert.remove();
+        
+        const alertBox = document.createElement("div");
+        alertBox.className = "shop-alert";
+        alertBox.innerText = "¡No tienes suficientes monedas!";
+        alertBox.style.cssText = "position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 10px 20px; border-radius: 20px; animation: fadeOut 3s forwards;";
+        modal.querySelector(".shop-content").appendChild(alertBox);
+        setTimeout(() => alertBox.remove(), 3000);
+    }
+};
+
+window.viewShopItem = function(id) {
+     const item = SHOP_PHOTOS.find(p => p.id === id);
+     if(item) {
+         openGalleryLightbox({
+             title: item.title,
+             text: "📸 Mándame captura de esta pantalla para enviártela por WhatsApp",
+             image: item.url
+         });
+     }
+};
+
+function showShopReveal(id) {
+    const item = SHOP_PHOTOS.find(p => p.id === id);
+    if (!item) return;
+    
+    // Close shop momentarily
+    const modal = document.getElementById("shop-modal");
+    if(modal) modal.classList.remove("active");
+    
+    // Create Reveal Overlay
+    let reveal = document.getElementById("shop-reveal");
+    if(!reveal) {
+        reveal = document.createElement("div");
+        reveal.id = "shop-reveal";
+        reveal.className = "shop-reveal-overlay";
+        document.body.appendChild(reveal);
+    }
+    
+    reveal.innerHTML = `
+        <div class="reveal-particles"></div>
+        <div class="reveal-content">
+            <h2 class="reveal-title">¡Recuerdo Desbloqueado!</h2>
+            <div class="reveal-img-wrapper">
+                <img src="${item.url}" class="reveal-img">
+            </div>
+            <p class="reveal-note" style="color: #fbbf24; font-weight: bold; margin-top: 15px; font-size: 1.1rem;">
+                📸 "Mándame captura de esta pantalla para enviártela por WhatsApp"
+            </p>
+            <button class="reveal-close">Continuar</button>
+        </div>
+    `;
+    
+    reveal.classList.add("active");
+    
+    reveal.querySelector(".reveal-close").addEventListener("click", () => {
+        reveal.classList.remove("active");
+        openShopModal(); // Re-open shop
+    });
+}
 function renderLockedWithUnlockArea(card, memory) {
   const { type, hint, hintMedia, date } = memory;
   const locked = document.createElement("div");
@@ -742,14 +1354,15 @@ function renderLockedWithUnlockArea(card, memory) {
 
 // ── Standard locked (timestamp not reached) ──
 function renderLockedStandard(card, memory) {
-  const { type, hint, hintMedia } = memory;
+  const { type, hint, hintMedia, date } = memory;
   const locked = document.createElement("div");
   locked.className = "locked-content";
   locked.innerHTML = `
     ${buildHintPreview(type, hintMedia)}
     <div class="locked-content__overlay">
-      <div class="locked-content__icon">🔒</div>
+      <div class="locked-content__icon" id="lock-icon-${date}">🔒</div>
       <div class="locked-content__text">${hint || "Aún no despierta…"}</div>
+      <div class="unlock-area" id="unlock-area-${date}"></div>
     </div>
   `;
   locked.style.cursor = "pointer";
@@ -779,6 +1392,7 @@ function buildHintPreview(type, hintMedia) {
 // PARTICLES
 // ══════════════════════════════════════════
 let particleBrightness = 1;
+window.isGameRunning = false; // Global flag to pause particles
 
 function initParticles() {
   const canvas = document.getElementById("bg-canvas");
@@ -806,7 +1420,8 @@ function initParticles() {
   }
 
   function initParticleArray() {
-    const count = Math.min(Math.floor((width * height) / 18000), 80);
+    // OPTIMIZATION: Reduced particle count for performance
+    const count = window.innerWidth < 768 ? 20 : 40; 
     particles = [];
     for (let i = 0; i < count; i++) {
       particles.push(createParticle());
@@ -814,19 +1429,21 @@ function initParticles() {
   }
 
   function draw() {
-    ctx.clearRect(0, 0, width, height);
-    for (const p of particles) {
-      p.x += p.speedX;
-      p.y += p.speedY;
-      if (p.x < -10) p.x = width + 10;
-      if (p.x > width + 10) p.x = -10;
-      if (p.y < -10) p.y = height + 10;
-      if (p.y > height + 10) p.y = -10;
+    if (!window.isGameRunning) { // Only draw if game is NOT running
+        ctx.clearRect(0, 0, width, height);
+        for (const p of particles) {
+          p.x += p.speedX;
+          p.y += p.speedY;
+          if (p.x < -10) p.x = width + 10;
+          if (p.x > width + 10) p.x = -10;
+          if (p.y < -10) p.y = height + 10;
+          if (p.y > height + 10) p.y = -10;
 
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size * particleBrightness, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${p.hue}, 60%, 70%, ${p.opacity * particleBrightness})`;
-      ctx.fill();
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * particleBrightness, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue}, 60%, 70%, ${p.opacity * particleBrightness})`;
+          ctx.fill();
+        }
     }
     requestAnimationFrame(draw);
   }
@@ -834,7 +1451,16 @@ function initParticles() {
   resize();
   initParticleArray();
   draw();
-  window.addEventListener("resize", () => { resize(); initParticleArray(); });
+  
+  // OPTIMIZATION: Debounce resize event
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+          resize();
+          initParticleArray();
+      }, 200);
+  });
 }
 
 // ══════════════════════════════════════════
@@ -845,6 +1471,22 @@ let unlockCheckInterval = null;
 
 function init1111System() {
   initClockSecurity();
+
+  // ── STRICT LOCK ENFORCEMENT FOR FEB 16 ──
+  // If it's before 11:11 AM on Feb 16, FORCE LOCK by removing from storage
+  const feb16Target = new Date("2026-02-16T11:11:00").getTime();
+  const now = Date.now();
+  if (now < feb16Target) {
+      console.log("🔒 Relocking Feb 16 memory (Time hasn't arrived)");
+      localStorage.removeItem("unlocked_2026-02-16");
+      // Also ensure UI is reset if needed (reload might be best, but we'll try to handle it)
+      const card = document.querySelector('.memory-card[data-date="2026-02-16"]');
+      if (card) {
+          card.classList.remove("is-unlocked", "memory-card--ready", "is-visible");
+          card.classList.add("memory-card--locked");
+      }
+  }
+
   // Check every second
   unlockCheckInterval = setInterval(check1111Status, 1000);
   check1111Status(); // Run immediately too
@@ -853,6 +1495,8 @@ function init1111System() {
 function check1111Status() {
   // Skip checks when tab is hidden (performance)
   if (document.hidden) return;
+
+  const now = Date.now();
 
   MEMORIES.forEach((memory) => {
     const { date } = memory;
@@ -868,29 +1512,64 @@ function check1111Status() {
     const unlockArea = document.getElementById("unlock-area-" + date);
     if (!unlockArea) return;
 
-    if (isUnlockWindowOpen(date)) {
+    // Check if time is reached (allow 1 hour window or if specifically currently active)
+    const entry = UNLOCK_TIMESTAMPS.find(e => e.date === date);
+    if (!entry) return;
+
+    const isTimeReached = now >= entry.ts;
+    const isWindowOpen = isTimeReached && (now < entry.ts + 3600000); // 1 hour window
+
+    if (isWindowOpen) {
       // Unlock window is active! Show unlock button & add glow
-      card.classList.add("memory-card--ready");
+      if (!card.classList.contains("memory-card--ready")) {
+          card.classList.add("memory-card--ready");
+          // Force reflow or animation potentially
+      }
+      
       if (!unlockArea.querySelector(".unlock-btn")) {
         unlockArea.innerHTML = `<button class="unlock-btn" data-date="${date}">✨ Desbloquear recuerdo</button>`;
-        unlockArea.querySelector(".unlock-btn").addEventListener("click", (e) => {
+        const btn = unlockArea.querySelector(".unlock-btn");
+        btn.addEventListener("click", (e) => {
           e.stopPropagation();
           unlockMemory(date);
+        });
+        // Add subtle pulse animation to button
+        btn.animate([
+            { transform: 'scale(1)' },
+            { transform: 'scale(1.05)' },
+            { transform: 'scale(1)' }
+        ], {
+            duration: 2000,
+            iterations: Infinity
         });
       }
     } else {
       // Not in window — show waiting message with next timestamp info
-      card.classList.remove("memory-card--ready");
-      const entry = UNLOCK_TIMESTAMPS.find(e => e.date === date);
-      if (entry && Date.now() < entry.ts) {
-        // Future unlock
-        const unlockDate = new Date(entry.ts);
-        const dateStr = unlockDate.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-        unlockArea.innerHTML = `<div class="wait-1111-msg">Se desbloquea el <span class="time-highlight">${dateStr}</span> a las <span class="time-highlight">11:11</span></div>`;
-      } else if (entry && Date.now() >= entry.ts + 60000) {
-        // Window passed — next opportunity
-        unlockArea.innerHTML = `<div class="wait-1111-msg">Vuelve a las <span class="time-highlight">11:11</span> para desbloquearlo</div>`;
+      if (card.classList.contains("memory-card--ready")) {
+          card.classList.remove("memory-card--ready");
+          unlockArea.innerHTML = ""; // Clear button if window passed
+      }
+
+      if (now < entry.ts) {
+        // Future unlock - SHOW EXACT COUNTDOWN ALWAYS
+        const diff = Math.max(0, entry.ts - now);
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        let timeString = "";
+        if(days > 0) timeString += `<span class="time-val">${days}d</span> `;
+        if(hours > 0 || days > 0) timeString += `<span class="time-val">${hours}h</span> `;
+        timeString += `<span class="time-val">${minutes}m</span> <span class="time-val">${seconds}s</span>`;
+
+        unlockArea.innerHTML = `
+            <div class="wait-1111-msg">
+                <div>Desbloqueo en:</div>
+                <div class="countdown-mini">${timeString}</div>
+            </div>`;
       } else {
+        // Window passed — next opportunity (or missed)
         unlockArea.innerHTML = `<div class="wait-1111-msg">Vuelve a las <span class="time-highlight">11:11</span> para desbloquearlo</div>`;
       }
     }
@@ -959,174 +1638,71 @@ function unlockMemory(date) {
 // FIRST MEMORY — Cinematic Ceremony
 // ══════════════════════════════════════════
 
+// ══════════════════════════════════════════
+// FIRST MEMORY — Cinematic Ceremony (REBUILD PENDING)
+// ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// FIRST MEMORY — Cinematic Ceremony (RENAMED NUCLEAR FIX)
+// ══════════════════════════════════════════
+
 function showFirstMemoryCeremony() {
-  const overlay = document.getElementById("first-memory-overlay");
-  const img = document.getElementById("first-memory-img");
-  const textBox = document.getElementById("first-memory-text");
-  if (!overlay || !img || !textBox) return;
+    const overlay = document.getElementById("start-memory-modal");
+    const img = document.getElementById("start-memory-image");
+    const textBox = document.getElementById("start-memory-text");
+    const closeBtn = document.getElementById("start-memory-close");
 
-  // Set image
-  img.src = FIRST_MEMORY.image;
+    if (!overlay || !img || !textBox) return;
 
-  // Clear text box — will animate line by line
-  textBox.innerHTML = "";
+    // Setup content
+    img.src = FIRST_MEMORY.image;
+    textBox.innerHTML = ""; // Reset text
 
-  // Lock body scroll
-  document.body.classList.add("gallery-open");
+    // Open Overlay
+    overlay.classList.add("active");
+    document.body.style.overflow = "hidden"; // Lock scroll
 
-  // Show overlay
-  overlay.classList.add("is-active");
+    // Typewriter Effect
+    const lines = FIRST_MEMORY.text.split(/[.,]/).filter(s => s.trim().length > 0);
+    let delay = 500;
 
-  // Start particle animation
-  startCinematicParticles();
+    lines.forEach((line) => {
+        setTimeout(() => {
+            const p = document.createElement("p");
+            p.textContent = line.trim();
+            textBox.appendChild(p);
+            // Auto scroll to bottom
+            textBox.parentElement.scrollTop = textBox.parentElement.scrollHeight;
+        }, delay);
+        delay += 1000;
+    });
 
-  // Boost background particles
-  particleBrightness = 2.5;
-  setTimeout(() => { particleBrightness = 1; }, 7000);
-
-  // ── Typing effect: text appears line by line ──
-  const sentences = FIRST_MEMORY.text.split(",").map(s => s.trim()).filter(Boolean);
-  let delay = 2000; // Start after image begins to appear
-  sentences.forEach((sentence, i) => {
-    setTimeout(() => {
-      const p = document.createElement("p");
-      p.className = "first-memory__line";
-      p.textContent = sentence + (i < sentences.length - 1 ? "," : "");
-      p.style.animationDelay = "0s";
-      textBox.appendChild(p);
-      // Auto-scroll the text box
-      textBox.scrollTop = textBox.scrollHeight;
-    }, delay);
-    delay += 600 + sentence.length * 15; // Longer sentences get more time
-  });
+    // Setup Close Event
+    if (closeBtn) {
+        closeBtn.onclick = closeFirstMemory;
+    }
 }
 
 function closeFirstMemory() {
-  const overlay = document.getElementById("first-memory-overlay");
-  if (!overlay) return;
-  overlay.classList.remove("is-active");
-  document.body.classList.remove("gallery-open");
-  stopCinematicParticles();
+    const overlay = document.getElementById("start-memory-modal");
+    if (!overlay) return;
 
-  // Save first memory as unlocked
-  localStorage.setItem("firstMemoryUnlocked", "true");
-  saveUnlock(MEMORIES[0].date);
+    overlay.classList.remove("active");
+    document.body.style.overflow = ""; // Unlock scroll
 
-  // Rebuild the first memory card as unlocked (if not already)
-  const firstCard = document.querySelector(`.memory-card[data-date="${MEMORIES[0].date}"]`);
-  if (firstCard && !firstCard.classList.contains("is-unlocked")) {
-    firstCard.classList.remove("memory-card--locked");
-    firstCard.classList.add("is-unlocked");
-    firstCard.innerHTML = "";
-
-    const memory = MEMORIES[0];
-    const dateObj = new Date(memory.date + "T00:00:00");
-    const formattedDate = dateObj.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
-    const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵" };
-
-    const header = document.createElement("div");
-    header.className = "memory-card__header";
-    header.innerHTML = `
-      <div class="memory-card__icon">${memory.special ? "⭐" : icons[memory.type] || "💜"}</div>
-      <div class="memory-card__meta">
-        <div class="memory-card__date">${formattedDate}</div>
-        <h3 class="memory-card__title">${memory.title}</h3>
-      </div>
-    `;
-    firstCard.appendChild(header);
-    renderFirstMemoryBody(firstCard, memory);
-
-    const body = firstCard.querySelector(".memory-card__body");
-    if (body) body.classList.add("content-reveal");
-
-    const item = firstCard.closest(".timeline-item");
-    if (item) item.classList.add("is-unlocked");
-  }
-}
-
-let cinematicParticleRaf = null;
-
-function startCinematicParticles() {
-  const canvas = document.getElementById("first-memory-particles");
-  if (!canvas) return;
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-  const particles = [];
-  // Adaptive particle count based on screen size
-  const count = Math.min(60, Math.floor((canvas.width * canvas.height) / 20000));
-
-  for (let i = 0; i < count; i++) {
-    const edge = Math.floor(Math.random() * 4);
-    let x, y;
-    if (edge === 0) { x = Math.random() * canvas.width; y = 0; }
-    else if (edge === 1) { x = canvas.width; y = Math.random() * canvas.height; }
-    else if (edge === 2) { x = Math.random() * canvas.width; y = canvas.height; }
-    else { x = 0; y = Math.random() * canvas.height; }
-
-    particles.push({
-      x, y,
-      targetX: canvas.width / 2 + (Math.random() - 0.5) * 300,
-      targetY: canvas.height / 2 + (Math.random() - 0.5) * 300,
-      size: Math.random() * 3 + 1,
-      speed: 0.005 + Math.random() * 0.01,
-      progress: 0,
-      opacity: Math.random() * 0.6 + 0.2,
-      hue: Math.random() > 0.5 ? 260 : 280,
-    });
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (const p of particles) {
-      p.progress = Math.min(p.progress + p.speed, 1);
-      const t = p.progress;
-      const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-      const cx = p.x + (p.targetX - p.x) * ease;
-      const cy = p.y + (p.targetY - p.y) * ease;
-      const fadeOut = t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1;
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = `hsla(${p.hue}, 70%, 75%, ${p.opacity * fadeOut})`;
-      ctx.fill();
-    }
-    cinematicParticleRaf = requestAnimationFrame(draw);
-  }
-
-  cinematicParticleRaf = requestAnimationFrame(draw);
-}
-
-function stopCinematicParticles() {
-  if (cinematicParticleRaf) {
-    cancelAnimationFrame(cinematicParticleRaf);
-    cinematicParticleRaf = null;
-  }
+    // Unlock logic
+    localStorage.setItem("firstMemoryUnlocked", "true");
+    saveUnlock(MEMORIES[0].date);
+    check1111Status(); // Refresh UI
 }
 
 function initFirstMemoryOverlay() {
-  const closeBtn = document.getElementById("first-memory-close");
-  if (closeBtn) closeBtn.addEventListener("click", closeFirstMemory);
-
-  // Also close on backdrop click
-  const overlay = document.getElementById("first-memory-overlay");
-  if (overlay) {
-    overlay.addEventListener("click", (e) => {
-      if (e.target === overlay || e.target.classList.contains("first-memory__backdrop")) {
-        closeFirstMemory();
-      }
-    });
-  }
-
-  // ESC key
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && overlay && overlay.classList.contains("is-active")) {
-      closeFirstMemory();
+    const closeBtn = document.getElementById("start-memory-close");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", closeFirstMemory);
     }
-  });
 }
+
+// Particles logic deleted for clean rebuild
 
 // ══════════════════════════════════════════
 // COUNTDOWN — Precise to next absolute timestamp
