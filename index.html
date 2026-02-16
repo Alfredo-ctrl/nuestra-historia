@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Una historia que despierta con el tiempo. Nuestro rincón secreto en el universo digital."
+    />
+    <title>Nuestra Historia 💜</title>
+    <link rel="icon" href="https://res.cloudinary.com/dbbdcxcvx/image/upload/v1770871187/IMG_20260119_152336_v8gyvs.jpg" type="image/jpeg" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+
+    <!-- ── Particle Canvas ── -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- ── Animated Background Gradient ── -->
+    <div class="bg-gradient"></div>
+
+    <!-- ── Global Floating Photos Layer (Fondo Vivo) ── -->
+    <div id="floating-photos-layer" class="floating-photos-layer"></div>
+
+    <!-- ── Main Content ── -->
+    <div class="main-content">
+      <!-- ══════════════════════════════
+         PORTADA — Hero Section
+         ══════════════════════════════ -->
+      <section class="portada" id="portada">
+        <div class="portada__heart">💜</div>
+
+        <h1 class="portada__title">Nuestra Historia</h1>
+
+        <p class="portada__subtitle" id="portada-subtitle">
+          La historia de freddy &amp; Mel
+        </p>
+
+        <p class="portada__message">
+          Cada día, un nuevo recuerdo despierta aquí.<br />
+          Vuelve siempre… hay algo esperándote.
+        </p>
+
+        <!-- ── Floating Photo Gallery (Portada) ── -->
+        <div class="gallery-float" id="gallery-float">
+          <!-- JS generates floating photos here -->
+        </div>
+
+        <button class="btn-start" id="btn-start">
+          Comenzar
+          <span class="btn-start__arrow">→</span>
+        </button>
+
+        <!-- Countdown -->
+        <div class="countdown" id="countdown-timer">
+          <!-- JS generates content -->
+        </div>
+
+        <!-- Scroll indicator -->
+        <div class="scroll-indicator">
+          <span>Desliza</span>
+          <div class="scroll-indicator__line"></div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════
+         TIMELINE
+         ══════════════════════════════ -->
+      <section class="timeline-section" id="timeline">
+        <h2 class="timeline-section__title">Nuestros <span>recuerdos</span></h2>
+
+        <div class="timeline" id="timeline-list">
+          <!-- JS generates memory cards here -->
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════
+         FOOTER
+         ══════════════════════════════ -->
+      <footer class="site-footer">
+        <p class="site-footer__text">
+          Hecho con <span class="site-footer__heart">♥</span> para siempre
+        </p>
+      </footer>
+    </div>
+
+    <!-- ── Gallery Lightbox Overlay ── -->
+    <div class="gallery-lightbox" id="gallery-lightbox">
+      <div class="gallery-lightbox__backdrop" id="gallery-lightbox-backdrop"></div>
+      <div class="gallery-lightbox__content" id="gallery-lightbox-content">
+        <div class="gallery-lightbox__image-wrap">
+          <img class="gallery-lightbox__image" id="gallery-lightbox-img" src="" alt="" />
+        </div>
+        <div class="gallery-lightbox__info" id="gallery-lightbox-info">
+          <h3 class="gallery-lightbox__title" id="gallery-lightbox-title"></h3>
+          <div class="gallery-lightbox__text" id="gallery-lightbox-text"></div>
+          <button class="gallery-lightbox__close" id="gallery-lightbox-close">Cerrar ✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Hint Overlay (locked card preview) ── -->
+    <div class="hint-overlay" id="hint-overlay">
+      <div class="hint-overlay__backdrop" id="hint-overlay-backdrop"></div>
+      <div class="hint-overlay__content">
+        <div class="hint-overlay__visual">
+          <img class="hint-overlay__img" id="hint-overlay-img" src="" alt="" style="display:none" />
+          <div class="hint-overlay__wave" id="hint-overlay-wave" style="display:none">
+            <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+            <div class="wave-bar"></div><div class="wave-bar"></div>
+          </div>
+          <div class="hint-overlay__paper" id="hint-overlay-paper" style="display:none">
+            <div class="paper-line"></div><div class="paper-line"></div>
+            <div class="paper-line"></div><div class="paper-line"></div>
+          </div>
+          <div class="hint-overlay__lock">🔒</div>
+        </div>
+        <p class="hint-overlay__text" id="hint-overlay-text"></p>
+        <button class="hint-overlay__close" id="hint-overlay-close">Cerrar ✕</button>
+      </div>
+    </div>
+
+    <!-- ── Reveal Ceremony Overlay ── -->
+    <div class="reveal-overlay" id="reveal-overlay">
+      <div class="reveal-overlay__content">
+        <div class="reveal-overlay__icon">✨</div>
+        <h2 class="reveal-overlay__title">Un recuerdo acaba de despertar</h2>
+        <p class="reveal-overlay__subtitle">Búscalo en la línea del tiempo…</p>
+      </div>
+    </div>
+
+    <!-- ── First Memory Cinematic Overlay (New ID) ── -->
+    <div class="start-memory-modal" id="start-memory-modal">
+        <div class="start-memory-card">
+            <div class="start-memory-image-wrapper">
+                <img id="start-memory-image" src="" alt="Primer Recuerdo" />
+            </div>
+            <div class="start-memory-content">
+                <div id="start-memory-text" class="start-memory-typewriter"></div>
+            </div>
+            <button id="start-memory-close" class="start-memory-btn">Cerrar Recuerdo</button>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script src="script.js"></script>
+  </body>
+</html>
