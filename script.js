@@ -90,12 +90,12 @@ const MEMORIES = [
   },
   {
     date: "2026-02-22",
-    type: "video",
-    title: "Nuestra canción favorita",
-    text: "Cada vez que suena esta canción, pienso en ti.",
-    media: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
+    type: "quest",
+    title: "La búsqueda secreta",
+    text: "Cuando estés lista, empieza la búsqueda.",
+    media: null,
     special: false,
-    hint: "Una melodía que nos conecta…",
+    hint: "Hoy comienza algo importante…",
     hintMedia: null,
   },
   {
@@ -741,7 +741,7 @@ function renderUnlockedBody(card, memory) {
   card.addEventListener("click", (e) => {
     if (e.target.tagName === "VIDEO" || e.target.tagName === "AUDIO" || e.target.tagName === "BUTTON") return;
     // Don't open lightbox if this is a game or book type that handles its own clicks
-    if (type === "game" || type === "book" || type === "book2") return;
+    if (type === "game" || type === "book" || type === "book2" || type === "quest") return;
 
     openGalleryLightbox({
       title: title,
@@ -795,7 +795,97 @@ function renderUnlockedBody(card, memory) {
       renderBook2Memory(body, memory);
   }
 
+  // ── QUEST (BÚSQUEDA) LOGIC HOOK ──
+  if (type === "quest") {
+      renderQuestMemory(body, memory);
+  }
+
   card.appendChild(body);
+}
+
+function renderQuestMemory(container, memory) {
+  container.innerHTML = `
+    <div class="quest-memory">
+      <p class="quest-memory__text">${memory.text || "Empieza cuando tú quieras."}</p>
+      <button class="quest-start-btn" type="button">🗝️ Iniciar búsqueda</button>
+    </div>
+  `;
+
+  const btn = container.querySelector(".quest-start-btn");
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showQuestSequence();
+    });
+  }
+}
+
+function showQuestSequence() {
+  let overlay = document.getElementById("quest-sequence-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "quest-sequence-overlay";
+    overlay.className = "quest-sequence-overlay";
+    overlay.innerHTML = `
+      <div class="quest-sequence-overlay__backdrop"></div>
+      <div class="quest-sequence-overlay__content">
+        <div class="quest-sequence-title">La búsqueda inició</div>
+        <div class="quest-tutorial-sheet" aria-live="polite">
+          <h3>Tutorial</h3>
+          <p>
+            en todos estos recuerdos y estas pistas an estado ocultos secretos que tienes que buscar,
+            cosas ocultas y cosas que tendras que encontrar, debes tener buen ojo ya que no todos
+            estan a la vista y tal vez algunos estan mas escondidos que otros, buena suerte, todo
+            tiene tiempo limite, si te atrasas mas pistas iran apareciendo, buena suerte te amo
+          </p>
+          <button type="button" class="quest-tutorial-close">Entendido 💜</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector(".quest-tutorial-close");
+    const backdrop = overlay.querySelector(".quest-sequence-overlay__backdrop");
+    const closeOverlay = () => overlay.classList.remove("is-open", "show-sheet");
+    if (closeBtn) closeBtn.addEventListener("click", closeOverlay);
+    if (backdrop) backdrop.addEventListener("click", closeOverlay);
+  }
+
+  overlay.classList.add("is-open");
+  overlay.classList.remove("show-sheet");
+  window.setTimeout(() => {
+    overlay.classList.add("show-sheet");
+  }, 1800);
+}
+
+function injectBookSecretClues(text) {
+  const clues = [
+    { word: "busca", number: 1 },
+    { word: "en", number: 2 },
+    { word: "mis", number: 3 },
+    { word: "destacadas", number: 4 },
+  ];
+
+  let updated = text;
+  const missing = [];
+
+  clues.forEach(({ word, number }) => {
+    const rx = new RegExp(`\\b(${word})\\b`, "i");
+    if (rx.test(updated)) {
+      updated = updated.replace(rx, `$1<span class="book-secret-clue" aria-hidden="true">${number}</span>`);
+    } else {
+      missing.push({ word, number });
+    }
+  });
+
+  if (missing.length) {
+    const extraWords = missing
+      .map(({ word, number }) => `${word}<span class="book-secret-clue" aria-hidden="true">${number}</span>`)
+      .join(" ");
+    updated += `\n\nPista: ${extraWords}.`;
+  }
+
+  return updated;
 }
 
 // ══════════════════════════════════════════
@@ -1563,7 +1653,7 @@ function buildBookPages() {
     });
 
     // Split content into sentences
-    const rawText = chapter.content;
+    const rawText = idx === 0 ? injectBookSecretClues(chapter.content) : chapter.content;
     const sentences = rawText.split(/,\s*/).filter(s => s.trim().length > 0);
 
     // Group sentences into small chunks (~250 chars each) as "paragraphs"
