@@ -90,32 +90,32 @@ const MEMORIES = [
   },
   {
     date: "2026-02-22",
-    type: "video",
-    title: "Nuestra canción favorita",
-    text: "Cada vez que suena esta canción, pienso en ti.",
-    media: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
+    type: "quest",
+    title: "La búsqueda secreta",
+    text: "Cuando estés lista, empieza la búsqueda.",
+    media: null,
     special: false,
-    hint: "Una melodía que nos conecta…",
+    hint: "Hoy comienza algo importante…",
     hintMedia: null,
   },
   {
     date: "2026-02-24",
-    type: "audio",
-    title: "Escucha esto",
-    text: "Presiona play y cierra los ojos un momento…",
-    media: "https://res.cloudinary.com/demo/video/upload/dog.mp4",
+    type: "safe",
+    title: "Caja fuerte secreta",
+    text: "Ingresa el código de 4 dígitos para abrir este regalo.",
+    media: null,
     special: false,
-    hint: "Cierra los ojos y escucha…",
+    hint: "Hoy se desbloquea una caja fuerte…",
     hintMedia: null,
   },
   {
     date: "2026-02-26",
-    type: "text",
-    title: "Una carta para ti",
-    text: "Mi amor,\n\nNo sé cómo explicar lo que siento sin que las palabras se queden cortas. Pero quiero que sepas que eres lo mejor que me ha pasado. Cada momento contigo es un regalo que guardo en el corazón.\n\nTe quiero más de lo que cualquier palabra podría decir.\n\nPara siempre tuyo/a.",
+    type: "housegame",
+    title: "La casa de los recuerdos",
+    text: "Explora la casa oscura, encuentra todas las fotos y usa la linterna infrarroja para descubrir números ocultos.",
     media: null,
     special: false,
-    hint: "Una carta que guardé mucho tiempo…",
+    hint: "Hoy toca explorar una casa llena de pistas…",
     hintMedia: null,
   },
   {
@@ -154,7 +154,18 @@ const SHOP_PHOTOS = [
     { id: "shop8", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.12.29_PM_nkwpun.jpg", title: "Mini Freddy 8" },
     { id: "shop9", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.13.15_PM_sdd7c8.jpg", title: "Mini Freddy 9" },
     { id: "shop10", price: 5, url: "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1771215656/WhatsApp_Image_2026-02-15_at_10.09.53_PM_j8vwhq.jpg", title: "Mini Freddy 10" },
+    { id: "clue2-fake-1", price: 100, type: "card", title: "Tarjeta Misteriosa A", text: "en esta no hay nada, sigue probando" },
+    { id: "clue2-fake-2", price: 100, type: "card", title: "Tarjeta Misteriosa B", text: "en esta no hay nada, sigue probando" },
+    { id: "clue2-fake-3", price: 100, type: "card", title: "Tarjeta Misteriosa C", text: "en esta no hay nada, sigue probando" },
+    { id: "clue2-fake-4", price: 100, type: "card", title: "Tarjeta Misteriosa D", text: "en esta no hay nada, sigue probando" },
+    { id: "clue2-real", price: 100, type: "card", title: "Tarjeta Misteriosa Final", text: "Parte del código encontrada: 2", codeDigit: "2", revealAfterDecoys: true },
 ];
+
+const SAFE_24_CODE = "2412";
+const SAFE_24_STORAGE_KEY = "safe_2026_02_24_opened";
+const SHOP_DECOY_IDS = ["clue2-fake-1", "clue2-fake-2", "clue2-fake-3", "clue2-fake-4"];
+const HOUSE_GAME_AVATAR_URL = "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1772149704/image-removebg-preview_fqyyk5.png";
+const HOUSE_GAME_26_UNLOCK_KEY = "house_game_2026_02_26_unlocked";
 
 // STATE
 let gameCoins = 0;
@@ -164,18 +175,20 @@ let gameRaf = null;
 
 // INIT Load
 function loadGameState() {
+  // Reset V4 requested: start coins from 0 and clean previous progression once
+  if (localStorage.getItem("minigame_reset_v4") !== "true") {
+    localStorage.setItem("minigame_coins", "0");
+    localStorage.setItem("minigame_unlocked_items", "[]");
+    localStorage.setItem("minigame_reset_v4", "true");
+  }
+
   const savedCoins = localStorage.getItem("minigame_coins");
-  if (savedCoins !== null) gameCoins = parseInt(savedCoins);
+  if (savedCoins !== null && !Number.isNaN(parseInt(savedCoins, 10))) gameCoins = parseInt(savedCoins, 10);
 
   const savedItems = localStorage.getItem("minigame_unlocked_items");
   if (savedItems) unlockedShopItems = JSON.parse(savedItems);
 
-  // Starter Gift V3 — always ensure at least 11 coins on fresh start
-  if (localStorage.getItem("minigame_starterGiven_v3") !== "true") {
-      gameCoins = 11;
-      localStorage.setItem("minigame_starterGiven_v3", "true");
-      localStorage.setItem("minigame_coins", gameCoins);
-  }
+  // No starter gift now: coins should begin at 0
 }
 loadGameState();
 
@@ -651,7 +664,7 @@ function createMemory(memoryData) {
     year: "numeric",
   });
 
-  const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", book: "📖" };
+  const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", housegame: "🏚️", book: "📖", safe: "🧰" };
 
   // Header
   const header = document.createElement("div");
@@ -741,7 +754,7 @@ function renderUnlockedBody(card, memory) {
   card.addEventListener("click", (e) => {
     if (e.target.tagName === "VIDEO" || e.target.tagName === "AUDIO" || e.target.tagName === "BUTTON") return;
     // Don't open lightbox if this is a game or book type that handles its own clicks
-    if (type === "game" || type === "book" || type === "book2") return;
+    if (type === "game" || type === "housegame" || type === "book" || type === "book2" || type === "quest" || type === "safe") return;
 
     openGalleryLightbox({
       title: title,
@@ -785,6 +798,10 @@ function renderUnlockedBody(card, memory) {
       renderGameMemory(body, memory);
   }
 
+  if (type === "housegame") {
+      renderHouseMysteryMemory(body, memory);
+  }
+
   // ── BOOK LOGIC HOOK ──
   if (type === "book") {
       renderBookMemory(body, memory);
@@ -795,7 +812,549 @@ function renderUnlockedBody(card, memory) {
       renderBook2Memory(body, memory);
   }
 
+  // ── QUEST (BÚSQUEDA) LOGIC HOOK ──
+  if (type === "quest") {
+      renderQuestMemory(body, memory);
+  }
+
+  // ── SAFE (CAJA FUERTE) LOGIC HOOK ──
+  if (type === "safe") {
+      renderSafeMemory(body, memory);
+  }
+
   card.appendChild(body);
+}
+
+function renderSafeMemory(container, memory) {
+  const alreadyOpened = localStorage.getItem(SAFE_24_STORAGE_KEY) === "true";
+  container.innerHTML = `
+    <div class="safe-memory">
+      <div class="safe-drawing ${alreadyOpened ? "safe-drawing--open" : ""}">
+        <div class="safe-drawing__door"></div>
+        <div class="safe-drawing__dial">✶</div>
+      </div>
+      <p class="safe-memory__text">${memory.text || "Ingresa el código de 4 números."}</p>
+      <div class="safe-inputs">
+        <input class="safe-digit" inputmode="numeric" maxlength="1" aria-label="Dígito 1" ${alreadyOpened ? "disabled" : ""}>
+        <input class="safe-digit" inputmode="numeric" maxlength="1" aria-label="Dígito 2" ${alreadyOpened ? "disabled" : ""}>
+        <input class="safe-digit" inputmode="numeric" maxlength="1" aria-label="Dígito 3" ${alreadyOpened ? "disabled" : ""}>
+        <input class="safe-digit" inputmode="numeric" maxlength="1" aria-label="Dígito 4" ${alreadyOpened ? "disabled" : ""}>
+      </div>
+      <button class="safe-open-btn" type="button" ${alreadyOpened ? "disabled" : ""}>🔓 Desbloquear caja fuerte</button>
+      <p class="safe-feedback">${alreadyOpened ? "Caja fuerte abierta 💜" : "Por ahora permanece bloqueada."}</p>
+    </div>
+  `;
+
+  if (alreadyOpened) return;
+  const digits = Array.from(container.querySelectorAll(".safe-digit"));
+  const btn = container.querySelector(".safe-open-btn");
+  const feedback = container.querySelector(".safe-feedback");
+  const safeBox = container.querySelector(".safe-drawing");
+
+  digits.forEach((input, idx) => {
+    input.addEventListener("input", () => {
+      input.value = input.value.replace(/\D/g, "").slice(0, 1);
+      if (input.value && digits[idx + 1]) digits[idx + 1].focus();
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Backspace" && !input.value && digits[idx - 1]) digits[idx - 1].focus();
+    });
+  });
+
+  btn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const code = digits.map((d) => d.value).join("");
+    if (code.length < 4) {
+      feedback.textContent = "Faltan dígitos...";
+      safeBox?.classList.remove("safe-drawing--shake");
+      void safeBox?.offsetWidth;
+      safeBox?.classList.add("safe-drawing--shake");
+      return;
+    }
+    if (code !== SAFE_24_CODE) {
+      feedback.textContent = "Código incorrecto, sigue buscando pistas.";
+      safeBox?.classList.remove("safe-drawing--shake");
+      void safeBox?.offsetWidth;
+      safeBox?.classList.add("safe-drawing--shake");
+      return;
+    }
+
+    localStorage.setItem(SAFE_24_STORAGE_KEY, "true");
+    safeBox?.classList.add("safe-drawing--open");
+    feedback.textContent = "¡Código correcto! Caja fuerte abierta ✨";
+    showSafeOpenAnimation();
+    digits.forEach((d) => (d.disabled = true));
+    btn.disabled = true;
+  });
+}
+
+function showSafeOpenAnimation() {
+  let overlay = document.getElementById("safe-open-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "safe-open-overlay";
+    overlay.className = "safe-open-overlay";
+    overlay.innerHTML = `
+      <div class="safe-open-overlay__content">
+        <div class="safe-open-burst">💥</div>
+        <h3>Caja fuerte abierta</h3>
+        <p>Regalo desbloqueado con éxito 💜</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+  overlay.classList.add("active");
+  setTimeout(() => overlay.classList.remove("active"), 2200);
+}
+
+function renderQuestMemory(container, memory) {
+  container.innerHTML = `
+    <div class="quest-memory">
+      <p class="quest-memory__text">${memory.text || "Empieza cuando tú quieras."}</p>
+      <button class="quest-start-btn" type="button">🗝️ Iniciar búsqueda</button>
+    </div>
+  `;
+
+  const btn = container.querySelector(".quest-start-btn");
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      showQuestSequence();
+    });
+  }
+}
+
+function showQuestSequence() {
+  let overlay = document.getElementById("quest-sequence-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "quest-sequence-overlay";
+    overlay.className = "quest-sequence-overlay";
+    overlay.innerHTML = `
+      <div class="quest-sequence-overlay__backdrop"></div>
+      <div class="quest-sequence-overlay__content">
+        <div class="quest-sequence-title">La búsqueda inició</div>
+        <div class="quest-tutorial-sheet" aria-live="polite">
+          <h3>Tutorial</h3>
+          <p>
+            en todos estos recuerdos y estas pistas an estado ocultos secretos que tienes que buscar,
+            cosas ocultas y cosas que tendras que encontrar, debes tener buen ojo ya que no todos
+            estan a la vista y tal vez algunos estan mas escondidos que otros, buena suerte, todo
+            tiene tiempo limite, si te atrasas mas pistas iran apareciendo, buena suerte te amo
+          </p>
+          <button type="button" class="quest-tutorial-close">Entendido 💜</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const closeBtn = overlay.querySelector(".quest-tutorial-close");
+    const backdrop = overlay.querySelector(".quest-sequence-overlay__backdrop");
+    const closeOverlay = () => overlay.classList.remove("is-open", "show-sheet");
+    if (closeBtn) closeBtn.addEventListener("click", closeOverlay);
+    if (backdrop) backdrop.addEventListener("click", closeOverlay);
+  }
+
+  overlay.classList.add("is-open");
+  overlay.classList.remove("show-sheet");
+  window.setTimeout(() => {
+    overlay.classList.add("show-sheet");
+  }, 1800);
+}
+
+function injectBookSecretClues(text) {
+  const clues = [
+    { word: "busca", number: 1 },
+    { word: "en", number: 2 },
+    { word: "mis", number: 3 },
+    { word: "destacadas", number: 4 },
+  ];
+
+  let updated = text;
+  const missing = [];
+
+  clues.forEach(({ word, number }) => {
+    const rx = new RegExp(`\\b(${word})\\b`, "i");
+    if (rx.test(updated)) {
+      updated = updated.replace(rx, `$1<span class="book-secret-clue" aria-hidden="true">${number}</span>`);
+    } else {
+      missing.push({ word, number });
+    }
+  });
+
+  if (missing.length) {
+    const extraWords = missing
+      .map(({ word, number }) => `${word}<span class="book-secret-clue" aria-hidden="true">${number}</span>`)
+      .join(" ");
+    updated += `\n\nPista: ${extraWords}.`;
+  }
+
+  return updated;
+}
+
+function getHouseGameImagePool() {
+  const gallery = (Array.isArray(GALLERY) ? GALLERY.map((g) => g.image) : []);
+  const floating = (Array.isArray(FLOATING_MEMORIES) ? FLOATING_MEMORIES.map((f) => f.url) : []);
+  return Array.from(new Set([...gallery, ...floating])).filter(Boolean);
+}
+
+function renderHouseMysteryMemory(container, memory) {
+  if (window.__houseGame26Cleanup) {
+    try { window.__houseGame26Cleanup(); } catch (_) {}
+  }
+
+  const gameUnlocked = localStorage.getItem(HOUSE_GAME_26_UNLOCK_KEY) === "true";
+  if (!gameUnlocked) {
+    container.innerHTML = `
+      <div class="house-game-gate">
+        <p class="house-game-hint">${memory.text || "Explora y encuentra pistas."}</p>
+        <button class="house-game-start-btn" id="house-game-start-btn">🔓 Desbloquear juego</button>
+        <p class="house-game-gate__sub">Este recuerdo abre una casa oscura con pistas escondidas.</p>
+      </div>
+    `;
+
+    const startBtn = container.querySelector("#house-game-start-btn");
+    startBtn?.addEventListener("click", () => {
+      localStorage.setItem(HOUSE_GAME_26_UNLOCK_KEY, "true");
+      startBtn.disabled = true;
+      startBtn.textContent = "✨ Iniciando...";
+      setTimeout(() => renderHouseMysteryMemory(container, memory), 650);
+    });
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="house-game-wrap">
+      <p class="house-game-hint">${memory.text || "Explora y encuentra pistas."}</p>
+      <div class="house-game-stage">
+        <canvas class="house-game-canvas" id="house-game-canvas" width="960" height="560"></canvas>
+        <div class="house-game-ui">
+          <div class="house-game-chip">🎯 Objetivo: buscar fotos y números ocultos</div>
+          <div class="house-game-chip">🕹️ Teclas: WASD / Flechas</div>
+          <button class="house-game-chip house-game-action" id="house-game-inspect">Inspeccionar foto</button>
+        </div>
+      </div>
+      <div class="house-game-touch" aria-hidden="true">
+        <button data-dir="up">↑</button>
+        <button data-dir="left">←</button>
+        <button data-dir="down">↓</button>
+        <button data-dir="right">→</button>
+      </div>
+    </div>
+  `;
+
+  const canvas = container.querySelector("#house-game-canvas");
+  const inspectBtn = container.querySelector("#house-game-inspect");
+  const touchButtons = Array.from(container.querySelectorAll(".house-game-touch button"));
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const keys = { up: false, down: false, left: false, right: false };
+  const world = { width: 2600, height: 1800 };
+  const rooms = [
+    { x: 80, y: 120, w: 700, h: 480, n: "Sala" },
+    { x: 860, y: 120, w: 620, h: 430, n: "Comedor" },
+    { x: 1540, y: 120, w: 560, h: 430, n: "Cocina" },
+    { x: 260, y: 720, w: 620, h: 460, n: "Pasillo" },
+    { x: 960, y: 680, w: 680, h: 520, n: "Habitación" },
+    { x: 1720, y: 680, w: 640, h: 520, n: "Closet" },
+    { x: 700, y: 1300, w: 1100, h: 420, n: "Sótano" },
+  ];
+  const lamps = [
+    { x: 420, y: 280, r: 180 }, { x: 1200, y: 300, r: 160 }, { x: 1820, y: 300, r: 170 },
+    { x: 520, y: 930, r: 170 }, { x: 1260, y: 920, r: 180 }, { x: 2000, y: 940, r: 190 }, { x: 1280, y: 1510, r: 210 },
+  ];
+
+  const photoSpots = [];
+  rooms.forEach((r) => {
+    for (let i = 0; i < 4; i++) {
+      photoSpots.push({
+        x: r.x + 70 + (i % 2) * (r.w * 0.45),
+        y: r.y + 60 + Math.floor(i / 2) * (r.h * 0.45),
+      });
+    }
+  });
+
+  const imagePool = getHouseGameImagePool();
+  const photos = photoSpots.slice(0, imagePool.length).map((s, i) => ({
+    id: "hg_" + i,
+    x: s.x,
+    y: s.y,
+    w: 110,
+    h: 80,
+    url: imagePool[i],
+    img: null,
+    found: false,
+    clue: null,
+  }));
+  if (photos[5]) photos[5].clue = "1";
+  if (photos[17]) photos[17].clue = "9";
+
+  photos.forEach((p) => {
+    p.img = new Image();
+    p.img.src = p.url;
+  });
+
+  const playerImg = new Image();
+  playerImg.src = HOUSE_GAME_AVATAR_URL;
+
+  const player = { x: 230, y: 220, r: 28, speed: 240, bob: 0 };
+  const camera = { x: 0, y: 0 };
+  let nearPhoto = null;
+  let running = true;
+  let last = performance.now();
+
+  function onKey(e, down) {
+    if (["ArrowUp", "w", "W"].includes(e.key)) keys.up = down;
+    if (["ArrowDown", "s", "S"].includes(e.key)) keys.down = down;
+    if (["ArrowLeft", "a", "A"].includes(e.key)) keys.left = down;
+    if (["ArrowRight", "d", "D"].includes(e.key)) keys.right = down;
+  }
+
+  const keyDown = (e) => onKey(e, true);
+  const keyUp = (e) => onKey(e, false);
+  window.addEventListener("keydown", keyDown);
+  window.addEventListener("keyup", keyUp);
+
+  touchButtons.forEach((btn) => {
+    const dir = btn.getAttribute("data-dir");
+    btn.addEventListener("pointerdown", () => { if (dir) keys[dir] = true; });
+    btn.addEventListener("pointerup", () => { if (dir) keys[dir] = false; });
+    btn.addEventListener("pointerleave", () => { if (dir) keys[dir] = false; });
+  });
+
+  const inspectNearby = () => {
+    if (!nearPhoto) return;
+    openInfraInspectModal(nearPhoto);
+  };
+  inspectBtn?.addEventListener("click", (e) => { e.stopPropagation(); inspectNearby(); });
+  canvas.addEventListener("click", () => inspectNearby());
+
+  function update(dt) {
+    let vx = 0, vy = 0;
+    if (keys.left) vx -= 1;
+    if (keys.right) vx += 1;
+    if (keys.up) vy -= 1;
+    if (keys.down) vy += 1;
+    const mag = Math.hypot(vx, vy) || 1;
+    vx /= mag; vy /= mag;
+
+    player.x = Math.max(20, Math.min(world.width - 20, player.x + vx * player.speed * dt));
+    player.y = Math.max(20, Math.min(world.height - 20, player.y + vy * player.speed * dt));
+    if (vx || vy) player.bob += dt * 12;
+
+    camera.x += ((player.x - canvas.width / 2) - camera.x) * 0.08;
+    camera.y += ((player.y - canvas.height / 2) - camera.y) * 0.08;
+    camera.x = Math.max(0, Math.min(world.width - canvas.width, camera.x));
+    camera.y = Math.max(0, Math.min(world.height - canvas.height, camera.y));
+
+    nearPhoto = null;
+    for (const p of photos) {
+      const cx = p.x + p.w / 2;
+      const cy = p.y + p.h / 2;
+      const d2 = (cx - player.x) ** 2 + (cy - player.y) ** 2;
+      if (d2 < 120 ** 2) {
+        nearPhoto = p;
+        p.found = true;
+        break;
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0b0b10";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // world floor + rooms
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    ctx.fillStyle = "#11131a";
+    ctx.fillRect(0, 0, world.width, world.height);
+    rooms.forEach((r) => {
+      ctx.fillStyle = "#1b1f2a";
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.font = "18px Inter";
+      ctx.fillText(r.n, r.x + 14, r.y + 24);
+    });
+
+    // closets/cabinets props
+    rooms.forEach((r, i) => {
+      ctx.fillStyle = i % 2 ? "#2f3443" : "#353a49";
+      ctx.fillRect(r.x + 25, r.y + r.h - 78, 140, 48);
+      ctx.fillRect(r.x + r.w - 185, r.y + 30, 150, 52);
+    });
+
+    // photos
+    photos.forEach((p) => {
+      const onScreen = p.x + p.w > camera.x && p.x < camera.x + canvas.width && p.y + p.h > camera.y && p.y < camera.y + canvas.height;
+      if (!onScreen) return;
+      if (nearPhoto === p) {
+        ctx.strokeStyle = "rgba(255, 210, 80, 0.9)";
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = "rgba(255, 220, 120, 0.9)";
+        ctx.strokeRect(p.x - 4, p.y - 4, p.w + 8, p.h + 8);
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillStyle = "#efefef";
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      if (p.img && p.img.complete) {
+        ctx.drawImage(p.img, p.x + 6, p.y + 6, p.w - 12, p.h - 12);
+      } else {
+        ctx.fillStyle = "#6b7280";
+        ctx.fillRect(p.x + 6, p.y + 6, p.w - 12, p.h - 12);
+      }
+    });
+
+    // player with bobbing animation
+    const bobY = Math.sin(player.bob) * 4;
+    const pw = 52, ph = 66;
+    if (playerImg.complete) {
+      ctx.drawImage(playerImg, player.x - pw / 2, player.y - ph / 2 + bobY, pw, ph);
+    } else {
+      ctx.fillStyle = "#a78bfa";
+      ctx.beginPath();
+      ctx.arc(player.x, player.y + bobY, player.r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // darkness and lighting
+    ctx.fillStyle = "rgba(0,0,0,0.78)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = "destination-out";
+    const carveLight = (x, y, r) => {
+      const g = ctx.createRadialGradient(x, y, 10, x, y, r);
+      g.addColorStop(0, "rgba(0,0,0,0.95)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    lamps.forEach((l) => carveLight(l.x - camera.x, l.y - camera.y, l.r));
+    carveLight(player.x - camera.x, player.y - camera.y, 140);
+    ctx.globalCompositeOperation = "source-over";
+
+    // minimap
+    const mapX = canvas.width - 165, mapY = 14, mapW = 150, mapH = 105;
+    ctx.fillStyle = "rgba(10,10,16,0.75)";
+    ctx.fillRect(mapX, mapY, mapW, mapH);
+    rooms.forEach((r) => {
+      ctx.strokeStyle = "rgba(255,255,255,0.22)";
+      ctx.strokeRect(mapX + (r.x / world.width) * mapW, mapY + (r.y / world.height) * mapH, (r.w / world.width) * mapW, (r.h / world.height) * mapH);
+    });
+    photos.forEach((p) => {
+      ctx.fillStyle = p.found ? "#34d399" : "#9ca3af";
+      ctx.fillRect(mapX + (p.x / world.width) * mapW, mapY + (p.y / world.height) * mapH, 2.6, 2.6);
+    });
+    ctx.fillStyle = "#a78bfa";
+    ctx.beginPath();
+    ctx.arc(mapX + (player.x / world.width) * mapW, mapY + (player.y / world.height) * mapH, 3.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (nearPhoto) {
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.font = "bold 14px Inter";
+      ctx.fillText("Foto encontrada — toca para inspeccionar", 16, canvas.height - 16);
+    }
+  }
+
+  function loop(now) {
+    if (!running) return;
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function openInfraInspectModal(photo) {
+    let modal = document.getElementById("infra-photo-modal");
+    if (modal) modal.remove();
+    modal = document.createElement("div");
+    modal.id = "infra-photo-modal";
+    modal.className = "infra-photo-modal";
+    modal.innerHTML = `
+      <div class="infra-photo-modal__backdrop"></div>
+      <div class="infra-photo-modal__content">
+        <h4>Escáner infrarrojo</h4>
+        <p>Mueve la linterna para buscar un número oculto.</p>
+        <canvas width="720" height="460" class="infra-photo-canvas"></canvas>
+        <button class="infra-photo-close">Cerrar</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const mCanvas = modal.querySelector(".infra-photo-canvas");
+    const mCtx = mCanvas.getContext("2d");
+    const closeBtn = modal.querySelector(".infra-photo-close");
+    const backdrop = modal.querySelector(".infra-photo-modal__backdrop");
+    const pointer = { x: mCanvas.width * 0.5, y: mCanvas.height * 0.5 };
+
+    const img = new Image();
+    img.src = photo.url;
+    const cluePos = { x: 90 + Math.random() * (mCanvas.width - 180), y: 80 + Math.random() * (mCanvas.height - 160) };
+    let irRunning = true;
+
+    const handleMove = (ev) => {
+      const rect = mCanvas.getBoundingClientRect();
+      const t = ev.touches ? ev.touches[0] : ev;
+      pointer.x = ((t.clientX - rect.left) / rect.width) * mCanvas.width;
+      pointer.y = ((t.clientY - rect.top) / rect.height) * mCanvas.height;
+    };
+    mCanvas.addEventListener("mousemove", handleMove);
+    mCanvas.addEventListener("touchmove", handleMove, { passive: true });
+
+    const closeModal = () => { irRunning = false; modal.remove(); };
+    closeBtn?.addEventListener("click", closeModal);
+    backdrop?.addEventListener("click", closeModal);
+
+    function renderIR() {
+      if (!irRunning) return;
+      mCtx.fillStyle = "#06070c";
+      mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+      if (img.complete) {
+        mCtx.drawImage(img, 0, 0, mCanvas.width, mCanvas.height);
+      }
+
+      if (photo.clue) {
+        mCtx.save();
+        mCtx.font = "bold 110px Inter";
+        mCtx.fillStyle = "rgba(255, 60, 80, 0.45)";
+        mCtx.fillText(photo.clue, cluePos.x, cluePos.y);
+        mCtx.restore();
+      }
+
+      mCtx.fillStyle = "rgba(0,0,0,0.92)";
+      mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+      mCtx.globalCompositeOperation = "destination-out";
+      const rg = mCtx.createRadialGradient(pointer.x, pointer.y, 18, pointer.x, pointer.y, 128);
+      rg.addColorStop(0, "rgba(0,0,0,1)");
+      rg.addColorStop(1, "rgba(0,0,0,0)");
+      mCtx.fillStyle = rg;
+      mCtx.beginPath();
+      mCtx.arc(pointer.x, pointer.y, 128, 0, Math.PI * 2);
+      mCtx.fill();
+      mCtx.globalCompositeOperation = "source-over";
+
+      requestAnimationFrame(renderIR);
+    }
+    requestAnimationFrame(renderIR);
+  }
+
+  window.__houseGame26Cleanup = () => {
+    running = false;
+    window.removeEventListener("keydown", keyDown);
+    window.removeEventListener("keyup", keyUp);
+  };
 }
 
 // ══════════════════════════════════════════
@@ -832,7 +1391,7 @@ function renderGameMemory(container, memory) {
     
     const instructions = document.createElement("div");
     instructions.className = "game-instructions";
-    instructions.innerHTML = `<small>Toca o haz click para volar 💜 • Esquiva obstáculos • Recoge monedas 🪙</small>`;
+    instructions.innerHTML = `<small>Toca o haz click para volar 💜 • Esquiva obstáculos • Recoge monedas 🪙 • Verde: turbo 5s • Azul: gravedad invertida 5s</small>`;
     
     const startOverlay = document.createElement("div");
     startOverlay.className = "game-overlay game-start-overlay";
@@ -878,17 +1437,25 @@ function renderGameMemory(container, memory) {
     let coinsArray = [];
     let gParticles = [];
     let bgStars = [];
+    let powerups = [];
+    let bgGradient = null;
+    const activeEffects = { speedUntil: 0, invertUntil: 0 };
+    const EFFECT_DURATION = 5000;
 
     function generateStars() {
         bgStars = [];
-        for (let i = 0; i < 50; i++) {
+        for (let i = 0; i < 30; i++) {
             bgStars.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height, r: Math.random() * 1.5 + 0.3, tw: Math.random() * Math.PI * 2, sp: Math.random() * 0.02 + 0.01 });
         }
+        bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        bgGradient.addColorStop(0, '#0f0a1e');
+        bgGradient.addColorStop(0.5, '#1a1a2e');
+        bgGradient.addColorStop(1, '#16213e');
     }
 
     function resetGame() {
         gPlayer = { x: 60, y: canvas.height / 2, vy: 0, r: 14, trail: [] };
-        gObstacles = []; coinsArray = []; gParticles = [];
+        gObstacles = []; coinsArray = []; gParticles = []; powerups = [];
         score = 0; frameCount = 0; gameSpeed = BASE_SPEED;
         gOpts.obstacleTimer = 120; gOpts.coinTimer = 40;
         isPlaying = true; window.isGameRunning = true;
@@ -911,6 +1478,12 @@ function renderGameMemory(container, memory) {
         coinsArray.push({ x: canvas.width + Math.random() * 50, y, r: 18, hitR: 28, collected: false, glow: 0 }); 
     }
 
+    function spawnPowerup() {
+        const y = 40 + Math.random() * (canvas.height - 80);
+        const type = Math.random() < 0.5 ? 'speed' : 'invert';
+        powerups.push({ x: canvas.width + 20, y, r: 13, type, glow: Math.random() * Math.PI * 2 });
+    }
+
     function addGParticle(x, y, color, count) {
         for (let i = 0; i < count; i++) {
             gParticles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4, r: Math.random() * 3 + 1, life: 1, color: color || '#fbbf24' });
@@ -929,10 +1502,13 @@ function renderGameMemory(container, memory) {
         if (!isPlaying) return;
         frameCount++;
 
+        const nowMs = Date.now();
+        const speedBoostActive = activeEffects.speedUntil > nowMs;
+        const invertActive = activeEffects.invertUntil > nowMs;
+
         // Background gradient + stars
-        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        grad.addColorStop(0, '#0f0a1e'); grad.addColorStop(0.5, '#1a1a2e'); grad.addColorStop(1, '#16213e');
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = bgGradient || '#0f0a1e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         bgStars.forEach(s => {
             s.tw += s.sp; s.x -= gameSpeed * 0.2; if (s.x < 0) s.x = canvas.width;
             ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
@@ -940,14 +1516,16 @@ function renderGameMemory(container, memory) {
         });
 
         // Physics
-        gPlayer.vy += GRAVITY; gPlayer.y += gPlayer.vy;
+        const gravityNow = invertActive ? -GRAVITY : GRAVITY;
+        gPlayer.vy += gravityNow; gPlayer.y += gPlayer.vy;
         if (gPlayer.y + gPlayer.r >= canvas.height) { gPlayer.y = canvas.height - gPlayer.r; gPlayer.vy = 0; }
         if (gPlayer.y - gPlayer.r <= 0) { gPlayer.y = gPlayer.r; gPlayer.vy = 0; }
-        gameSpeed = BASE_SPEED + Math.min(score * 0.08, 1.5);
+        gameSpeed = (BASE_SPEED + Math.min(score * 0.08, 1.5)) * (speedBoostActive ? 1.65 : 1);
 
         // Spawners
         if (gOpts.obstacleTimer-- <= 0) { spawnObstacle(); gOpts.obstacleTimer = Math.max(90, 150 - score * 5); }
         if (gOpts.coinTimer-- <= 0) { spawnCoin(); gOpts.coinTimer = 40 + Math.random() * 50; }
+        if (frameCount % 280 === 0) spawnPowerup();
 
         // Draw obstacles
         for (let i = gObstacles.length - 1; i >= 0; i--) {
@@ -988,16 +1566,49 @@ function renderGameMemory(container, memory) {
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('$', coin.x, coin.y + 1);
             }
             const dx = gPlayer.x - coin.x, dy = gPlayer.y - coin.y;
-            if (!coin.collected && Math.sqrt(dx*dx + dy*dy) < gPlayer.r + coin.hitR) {
+            if (!coin.collected && (dx * dx + dy * dy) < (gPlayer.r + coin.hitR) * (gPlayer.r + coin.hitR)) {
                 coin.collected = true; gameCoins++; updateCoinDisplay();
                 localStorage.setItem('minigame_coins', gameCoins); addGParticle(coin.x, coin.y, '#fbbf24', 8);
             }
             if (coin.x + coin.r < -10) coinsArray.splice(i, 1);
         }
 
+        // Draw + collide powerups
+        for (let i = powerups.length - 1; i >= 0; i--) {
+            const p = powerups[i];
+            p.x -= gameSpeed;
+            p.glow = (p.glow + 0.1) % (Math.PI * 2);
+            const color = p.type === 'speed' ? '#22c55e' : '#3b82f6';
+
+            ctx.save();
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+
+            const pdx = gPlayer.x - p.x;
+            const pdy = gPlayer.y - p.y;
+            if ((pdx * pdx + pdy * pdy) < (gPlayer.r + p.r) * (gPlayer.r + p.r)) {
+                if (p.type === 'speed') {
+                    activeEffects.speedUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#22c55e', 10);
+                } else {
+                    activeEffects.invertUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#3b82f6', 10);
+                }
+                powerups.splice(i, 1);
+                continue;
+            }
+
+            if (p.x + p.r < -10) powerups.splice(i, 1);
+        }
+
         // Draw player
         gPlayer.trail.push({ x: gPlayer.x, y: gPlayer.y });
-        if (gPlayer.trail.length > 8) gPlayer.trail.shift();
+        if (gPlayer.trail.length > 6) gPlayer.trail.shift();
         gPlayer.trail.forEach((t, i) => {
             const alpha = (i / gPlayer.trail.length) * 0.3;
             ctx.beginPath(); ctx.arc(t.x, t.y, gPlayer.r * (i / gPlayer.trail.length) * 0.6, 0, Math.PI * 2);
@@ -1025,6 +1636,8 @@ function renderGameMemory(container, memory) {
         ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'top';
         ctx.fillText('Puntos: ' + score, canvas.width - 10, 10);
+        if (speedBoostActive) ctx.fillText('Turbo activo', canvas.width - 10, 28);
+        if (invertActive) ctx.fillText('Gravedad invertida', canvas.width - 10, 46);
 
         animationFrameId = requestAnimationFrame(animate);
     }
@@ -1035,7 +1648,8 @@ function renderGameMemory(container, memory) {
         e.stopPropagation();
         if (!isPlaying) return;
         if (e.type === 'touchstart') e.preventDefault();
-        gPlayer.vy = LIFT;
+        const invertActive = activeEffects.invertUntil > Date.now();
+        gPlayer.vy = invertActive ? Math.abs(LIFT) : LIFT;
         addGParticle(gPlayer.x, gPlayer.y + gPlayer.r, '#a855f7', 3);
     };
 
@@ -1105,21 +1719,27 @@ function openShopModal() {
     
     // Build Items HTML
     let itemsHtml = '';
-    SHOP_PHOTOS.forEach(item => {
+    const visibleItems = getVisibleShopItems();
+    visibleItems.forEach(item => {
         const isUnlocked = unlockedShopItems.includes(item.id);
+        const isCard = item.type === "card";
         
         let buttonHtml;
         if (isUnlocked) {
-             buttonHtml = `<button class="btn-direct-view" onclick="event.stopPropagation(); window.viewShopItem('${item.id}')">Ver Foto 👁️</button>`;
+             buttonHtml = `<button class="btn-direct-view" onclick="event.stopPropagation(); window.viewShopItem('${item.id}')">${isCard ? "Ver Tarjeta 🃏" : "Ver Foto 👁️"}</button>`;
         } else {
              // FORCE VISIBILITY STYLES INLINE
              buttonHtml = `<button class="btn-direct-buy" style="display:block !important; visibility:visible !important; opacity:1 !important;" onclick="event.stopPropagation(); window.confirmBuy('${item.id}')">Desbloquear (${item.price} 🪙)</button>`;
         }
 
+        const mediaHtml = isCard
+          ? `<div class="shop-card-preview ${isUnlocked ? "" : "blur"}">${isUnlocked ? (item.text || "Tarjeta") : "❓ Tarjeta Misteriosa"}</div>`
+          : `<img src="${item.url}" class="${isUnlocked ? '' : 'blur'}" loading="lazy" decoding="async">`;
+
         itemsHtml += `
             <div class="shop-item ${isUnlocked ? 'unlocked' : 'locked'}" data-id="${item.id}">
                 <div class="shop-item-img">
-                    <img src="${item.url}" class="${isUnlocked ? '' : 'blur'}" loading="lazy" decoding="async">
+                    ${mediaHtml}
                     ${!isUnlocked ? '<div class="lock-overlay">🔒</div>' : ''}
                 </div>
                 <div class="shop-item-info" style="display:flex; flex-direction:column; gap:8px;">
@@ -1169,6 +1789,17 @@ function openShopModal() {
     });
 }
 
+function areAllDecoysUnlocked() {
+  return SHOP_DECOY_IDS.every((id) => unlockedShopItems.includes(id));
+}
+
+function getVisibleShopItems() {
+  return SHOP_PHOTOS.filter((item) => {
+    if (!item.revealAfterDecoys) return true;
+    return areAllDecoysUnlocked();
+  });
+}
+
 // Handler for shop item clicks - EXPLICITLY GLOBAL
 window.shopItemClick = function(id) {
     if(!id) return;
@@ -1204,7 +1835,10 @@ window.openShopDetailsModal = function(item) {
             <button class="details-close">✕</button>
             <h3>${item.title}</h3>
             <div class="details-img-wrapper">
-                <img src="${item.url}" class="details-img blur">
+                ${item.type === "card"
+                  ? `<div class="details-card blur">Tarjeta Misteriosa</div>`
+                  : `<img src="${item.url}" class="details-img blur">`
+                }
                 <div class="lock-overlay">🔒</div>
             </div>
             <p class="details-price">Costo: <span>${item.price} 🪙</span></p>
@@ -1301,8 +1935,10 @@ window.viewShopItem = function(id) {
      if(item) {
          openGalleryLightbox({
              title: item.title,
-             text: "📸 Mándame captura de esta pantalla para enviártela por WhatsApp",
-             image: item.url
+             text: item.type === "card"
+              ? (item.codeDigit ? `✅ Esta tarjeta sí tiene una pista. Número: ${item.codeDigit}` : (item.text || "en esta no hay nada, sigue probando"))
+              : "📸 Mándame captura de esta pantalla para enviártela por WhatsApp",
+             image: item.type === "card" ? null : item.url
          });
      }
 };
@@ -1330,10 +1966,13 @@ function showShopReveal(id) {
             <div class="reveal-mystery" style="font-size:4rem; margin-bottom:1rem; animation: revealMysteryPulse 1.5s ease-in-out infinite;">🎁</div>
             <h2 class="reveal-title" style="opacity:0;">¿Qué foto será...?</h2>
             <div class="reveal-img-wrapper" style="opacity:0; filter:blur(30px) saturate(0); transform:scale(0.6);">
-                <img src="${item.url}" class="reveal-img" style="display:block;">
+                ${item.type === "card"
+                  ? `<div class="reveal-card">${item.codeDigit ? `Número encontrado: ${item.codeDigit}` : "en esta no hay nada, sigue probando"}</div>`
+                  : `<img src="${item.url}" class="reveal-img" style="display:block;">`
+                }
             </div>
             <p class="reveal-note" style="opacity:0; color: #fbbf24; font-weight: bold; margin-top: 15px; font-size: 1.1rem;">
-                📸 "Mándame captura de esta pantalla para enviártela por WhatsApp"
+                ${item.type === "card" ? "🧩 Sigue reuniendo pistas del código" : "📸 \"Mándame captura de esta pantalla para enviártela por WhatsApp\""}
             </p>
             <button class="reveal-close" style="opacity:0; pointer-events:none;">Continuar 💜</button>
         </div>
@@ -1563,7 +2202,7 @@ function buildBookPages() {
     });
 
     // Split content into sentences
-    const rawText = chapter.content;
+    const rawText = idx === 0 ? injectBookSecretClues(chapter.content) : chapter.content;
     const sentences = rawText.split(/,\s*/).filter(s => s.trim().length > 0);
 
     // Group sentences into small chunks (~250 chars each) as "paragraphs"
@@ -2877,7 +3516,7 @@ function unlockMemory(date) {
     card.innerHTML = ""; // Clear
 
     // Rebuild header
-    const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", book: "📖", book2: "📖" };
+    const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", housegame: "🏚️", book: "📖", book2: "📖", quest: "🗝️", safe: "🧰" };
     const dateObj = new Date(date + "T00:00:00");
     const formattedDate = dateObj.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
 
@@ -3403,10 +4042,48 @@ window.addEventListener("resize", () => {
   }, 250);
 });
 
+function showSiteEntranceAnimation() {
+  const existing = document.getElementById("site-entry-overlay");
+  if (existing) return;
+
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const overlay = document.createElement("div");
+  overlay.id = "site-entry-overlay";
+  overlay.className = "site-entry-overlay";
+
+  const starCount = reduceMotion ? 6 : 18;
+  let starsHtml = "";
+  for (let i = 0; i < starCount; i++) {
+    const delay = (Math.random() * 1.2).toFixed(2);
+    const left = (Math.random() * 100).toFixed(2);
+    const top = (Math.random() * 100).toFixed(2);
+    starsHtml += `<span class="site-entry-star" style="--d:${delay}s;left:${left}%;top:${top}%">✦</span>`;
+  }
+
+  overlay.innerHTML = `
+    <div class="site-entry-overlay__bg"></div>
+    <div class="site-entry-overlay__content">
+      ${starsHtml}
+      <div class="site-entry-title">Nuestra Historia</div>
+      <div class="site-entry-subtitle">Bienvenida, mi amor 💜</div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("is-visible"));
+
+  const life = reduceMotion ? 900 : 2300;
+  setTimeout(() => {
+    overlay.classList.add("is-leaving");
+    setTimeout(() => overlay.remove(), reduceMotion ? 250 : 650);
+  }, life);
+}
+
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", () => {
+  showSiteEntranceAnimation();
   applyConfig();
   buildTimeline();
   buildGallery();
