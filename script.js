@@ -167,6 +167,15 @@ const SHOP_DECOY_IDS = ["clue2-fake-1", "clue2-fake-2", "clue2-fake-3", "clue2-f
 const HOUSE_GAME_AVATAR_URL = "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1772149704/image-removebg-preview_fqyyk5.png";
 const HOUSE_GAME_26_UNLOCK_KEY = "house_game_2026_02_26_unlocked";
 
+const SAFE_24_CODE = "2412";
+const SAFE_24_STORAGE_KEY = "safe_2026_02_24_opened";
+const SHOP_DECOY_IDS = ["clue2-fake-1", "clue2-fake-2", "clue2-fake-3", "clue2-fake-4"];
+const HOUSE_GAME_AVATAR_URL = "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1772149704/image-removebg-preview_fqyyk5.png";
+
+const SAFE_24_CODE = "2412";
+const SAFE_24_STORAGE_KEY = "safe_2026_02_24_opened";
+const SHOP_DECOY_IDS = ["clue2-fake-1", "clue2-fake-2", "clue2-fake-3", "clue2-fake-4"];
+
 // STATE
 let gameCoins = 0;
 let unlockedShopItems = [];
@@ -796,6 +805,10 @@ function renderUnlockedBody(card, memory) {
   // ── GAME LOGIC HOOK ──
   if (type === "game") {
       renderGameMemory(body, memory);
+  }
+
+  if (type === "housegame") {
+      renderHouseMysteryMemory(body, memory);
   }
 
   if (type === "housegame") {
@@ -1484,6 +1497,18 @@ function renderGameMemory(container, memory) {
         powerups.push({ x: canvas.width + 20, y, r: 13, type, glow: Math.random() * Math.PI * 2 });
     }
 
+    function spawnPowerup() {
+        const y = 40 + Math.random() * (canvas.height - 80);
+        const type = Math.random() < 0.5 ? 'speed' : 'invert';
+        powerups.push({ x: canvas.width + 20, y, r: 13, type, glow: Math.random() * Math.PI * 2 });
+    }
+
+    function spawnPowerup() {
+        const y = 40 + Math.random() * (canvas.height - 80);
+        const type = Math.random() < 0.5 ? 'speed' : 'invert';
+        powerups.push({ x: canvas.width + 20, y, r: 13, type, glow: Math.random() * Math.PI * 2 });
+    }
+
     function addGParticle(x, y, color, count) {
         for (let i = 0; i < count; i++) {
             gParticles.push({ x, y, vx: (Math.random() - 0.5) * 4, vy: (Math.random() - 0.5) * 4, r: Math.random() * 3 + 1, life: 1, color: color || '#fbbf24' });
@@ -1571,6 +1596,72 @@ function renderGameMemory(container, memory) {
                 localStorage.setItem('minigame_coins', gameCoins); addGParticle(coin.x, coin.y, '#fbbf24', 8);
             }
             if (coin.x + coin.r < -10) coinsArray.splice(i, 1);
+        }
+
+        // Draw + collide powerups
+        for (let i = powerups.length - 1; i >= 0; i--) {
+            const p = powerups[i];
+            p.x -= gameSpeed;
+            p.glow = (p.glow + 0.1) % (Math.PI * 2);
+            const color = p.type === 'speed' ? '#22c55e' : '#3b82f6';
+
+            ctx.save();
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+
+            const pdx = gPlayer.x - p.x;
+            const pdy = gPlayer.y - p.y;
+            if ((pdx * pdx + pdy * pdy) < (gPlayer.r + p.r) * (gPlayer.r + p.r)) {
+                if (p.type === 'speed') {
+                    activeEffects.speedUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#22c55e', 10);
+                } else {
+                    activeEffects.invertUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#3b82f6', 10);
+                }
+                powerups.splice(i, 1);
+                continue;
+            }
+
+            if (p.x + p.r < -10) powerups.splice(i, 1);
+        }
+
+        // Draw + collide powerups
+        for (let i = powerups.length - 1; i >= 0; i--) {
+            const p = powerups[i];
+            p.x -= gameSpeed;
+            p.glow = (p.glow + 0.1) % (Math.PI * 2);
+            const color = p.type === 'speed' ? '#22c55e' : '#3b82f6';
+
+            ctx.save();
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+
+            const pdx = gPlayer.x - p.x;
+            const pdy = gPlayer.y - p.y;
+            if ((pdx * pdx + pdy * pdy) < (gPlayer.r + p.r) * (gPlayer.r + p.r)) {
+                if (p.type === 'speed') {
+                    activeEffects.speedUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#22c55e', 10);
+                } else {
+                    activeEffects.invertUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#3b82f6', 10);
+                }
+                powerups.splice(i, 1);
+                continue;
+            }
+
+            if (p.x + p.r < -10) powerups.splice(i, 1);
         }
 
         // Draw + collide powerups
@@ -1787,6 +1878,28 @@ function openShopModal() {
             }
         });
     });
+}
+
+function areAllDecoysUnlocked() {
+  return SHOP_DECOY_IDS.every((id) => unlockedShopItems.includes(id));
+}
+
+function getVisibleShopItems() {
+  return SHOP_PHOTOS.filter((item) => {
+    if (!item.revealAfterDecoys) return true;
+    return areAllDecoysUnlocked();
+  });
+}
+
+function areAllDecoysUnlocked() {
+  return SHOP_DECOY_IDS.every((id) => unlockedShopItems.includes(id));
+}
+
+function getVisibleShopItems() {
+  return SHOP_PHOTOS.filter((item) => {
+    if (!item.revealAfterDecoys) return true;
+    return areAllDecoysUnlocked();
+  });
 }
 
 function areAllDecoysUnlocked() {
