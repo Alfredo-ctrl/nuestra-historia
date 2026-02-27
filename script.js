@@ -110,12 +110,12 @@ const MEMORIES = [
   },
   {
     date: "2026-02-26",
-    type: "text",
-    title: "Una carta para ti",
-    text: "Mi amor,\n\nNo sé cómo explicar lo que siento sin que las palabras se queden cortas. Pero quiero que sepas que eres lo mejor que me ha pasado. Cada momento contigo es un regalo que guardo en el corazón.\n\nTe quiero más de lo que cualquier palabra podría decir.\n\nPara siempre tuyo/a.",
+    type: "housegame",
+    title: "La casa de los recuerdos",
+    text: "Explora la casa oscura, encuentra todas las fotos y usa la linterna infrarroja para descubrir números ocultos.",
     media: null,
     special: false,
-    hint: "Una carta que guardé mucho tiempo…",
+    hint: "Hoy toca explorar una casa llena de pistas…",
     hintMedia: null,
   },
   {
@@ -160,6 +160,11 @@ const SHOP_PHOTOS = [
     { id: "clue2-fake-4", price: 100, type: "card", title: "Tarjeta Misteriosa D", text: "en esta no hay nada, sigue probando" },
     { id: "clue2-real", price: 100, type: "card", title: "Tarjeta Misteriosa Final", text: "Parte del código encontrada: 2", codeDigit: "2", revealAfterDecoys: true },
 ];
+
+const SAFE_24_CODE = "2412";
+const SAFE_24_STORAGE_KEY = "safe_2026_02_24_opened";
+const SHOP_DECOY_IDS = ["clue2-fake-1", "clue2-fake-2", "clue2-fake-3", "clue2-fake-4"];
+const HOUSE_GAME_AVATAR_URL = "https://res.cloudinary.com/dbbdcxcvx/image/upload/v1772149704/image-removebg-preview_fqyyk5.png";
 
 const SAFE_24_CODE = "2412";
 const SAFE_24_STORAGE_KEY = "safe_2026_02_24_opened";
@@ -662,7 +667,7 @@ function createMemory(memoryData) {
     year: "numeric",
   });
 
-  const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", book: "📖", safe: "🧰" };
+  const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", housegame: "🏚️", book: "📖", safe: "🧰" };
 
   // Header
   const header = document.createElement("div");
@@ -752,7 +757,7 @@ function renderUnlockedBody(card, memory) {
   card.addEventListener("click", (e) => {
     if (e.target.tagName === "VIDEO" || e.target.tagName === "AUDIO" || e.target.tagName === "BUTTON") return;
     // Don't open lightbox if this is a game or book type that handles its own clicks
-    if (type === "game" || type === "book" || type === "book2" || type === "quest" || type === "safe") return;
+    if (type === "game" || type === "housegame" || type === "book" || type === "book2" || type === "quest" || type === "safe") return;
 
     openGalleryLightbox({
       title: title,
@@ -794,6 +799,10 @@ function renderUnlockedBody(card, memory) {
   // ── GAME LOGIC HOOK ──
   if (type === "game") {
       renderGameMemory(body, memory);
+  }
+
+  if (type === "housegame") {
+      renderHouseMysteryMemory(body, memory);
   }
 
   // ── BOOK LOGIC HOOK ──
@@ -986,6 +995,351 @@ function injectBookSecretClues(text) {
   return updated;
 }
 
+function getHouseGameImagePool() {
+  const gallery = (Array.isArray(GALLERY) ? GALLERY.map((g) => g.image) : []);
+  const floating = (Array.isArray(FLOATING_MEMORIES) ? FLOATING_MEMORIES.map((f) => f.url) : []);
+  return Array.from(new Set([...gallery, ...floating])).filter(Boolean);
+}
+
+function renderHouseMysteryMemory(container, memory) {
+  if (window.__houseGame26Cleanup) {
+    try { window.__houseGame26Cleanup(); } catch (_) {}
+  }
+
+  container.innerHTML = `
+    <div class="house-game-wrap">
+      <p class="house-game-hint">${memory.text || "Explora y encuentra pistas."}</p>
+      <div class="house-game-stage">
+        <canvas class="house-game-canvas" id="house-game-canvas" width="960" height="560"></canvas>
+        <div class="house-game-ui">
+          <div class="house-game-chip">🎯 Objetivo: buscar fotos y números ocultos</div>
+          <div class="house-game-chip">🕹️ Teclas: WASD / Flechas</div>
+          <button class="house-game-chip house-game-action" id="house-game-inspect">Inspeccionar foto</button>
+        </div>
+      </div>
+      <div class="house-game-touch" aria-hidden="true">
+        <button data-dir="up">↑</button>
+        <button data-dir="left">←</button>
+        <button data-dir="down">↓</button>
+        <button data-dir="right">→</button>
+      </div>
+    </div>
+  `;
+
+  const canvas = container.querySelector("#house-game-canvas");
+  const inspectBtn = container.querySelector("#house-game-inspect");
+  const touchButtons = Array.from(container.querySelectorAll(".house-game-touch button"));
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  const keys = { up: false, down: false, left: false, right: false };
+  const world = { width: 2600, height: 1800 };
+  const rooms = [
+    { x: 80, y: 120, w: 700, h: 480, n: "Sala" },
+    { x: 860, y: 120, w: 620, h: 430, n: "Comedor" },
+    { x: 1540, y: 120, w: 560, h: 430, n: "Cocina" },
+    { x: 260, y: 720, w: 620, h: 460, n: "Pasillo" },
+    { x: 960, y: 680, w: 680, h: 520, n: "Habitación" },
+    { x: 1720, y: 680, w: 640, h: 520, n: "Closet" },
+    { x: 700, y: 1300, w: 1100, h: 420, n: "Sótano" },
+  ];
+  const lamps = [
+    { x: 420, y: 280, r: 180 }, { x: 1200, y: 300, r: 160 }, { x: 1820, y: 300, r: 170 },
+    { x: 520, y: 930, r: 170 }, { x: 1260, y: 920, r: 180 }, { x: 2000, y: 940, r: 190 }, { x: 1280, y: 1510, r: 210 },
+  ];
+
+  const photoSpots = [];
+  rooms.forEach((r) => {
+    for (let i = 0; i < 4; i++) {
+      photoSpots.push({
+        x: r.x + 70 + (i % 2) * (r.w * 0.45),
+        y: r.y + 60 + Math.floor(i / 2) * (r.h * 0.45),
+      });
+    }
+  });
+
+  const imagePool = getHouseGameImagePool();
+  const photos = photoSpots.slice(0, imagePool.length).map((s, i) => ({
+    id: "hg_" + i,
+    x: s.x,
+    y: s.y,
+    w: 110,
+    h: 80,
+    url: imagePool[i],
+    img: null,
+    found: false,
+    clue: null,
+  }));
+  if (photos[5]) photos[5].clue = "1";
+  if (photos[17]) photos[17].clue = "9";
+
+  photos.forEach((p) => {
+    p.img = new Image();
+    p.img.src = p.url;
+  });
+
+  const playerImg = new Image();
+  playerImg.src = HOUSE_GAME_AVATAR_URL;
+
+  const player = { x: 230, y: 220, r: 28, speed: 240, bob: 0 };
+  const camera = { x: 0, y: 0 };
+  let nearPhoto = null;
+  let running = true;
+  let last = performance.now();
+
+  function onKey(e, down) {
+    if (["ArrowUp", "w", "W"].includes(e.key)) keys.up = down;
+    if (["ArrowDown", "s", "S"].includes(e.key)) keys.down = down;
+    if (["ArrowLeft", "a", "A"].includes(e.key)) keys.left = down;
+    if (["ArrowRight", "d", "D"].includes(e.key)) keys.right = down;
+  }
+
+  const keyDown = (e) => onKey(e, true);
+  const keyUp = (e) => onKey(e, false);
+  window.addEventListener("keydown", keyDown);
+  window.addEventListener("keyup", keyUp);
+
+  touchButtons.forEach((btn) => {
+    const dir = btn.getAttribute("data-dir");
+    btn.addEventListener("pointerdown", () => { if (dir) keys[dir] = true; });
+    btn.addEventListener("pointerup", () => { if (dir) keys[dir] = false; });
+    btn.addEventListener("pointerleave", () => { if (dir) keys[dir] = false; });
+  });
+
+  const inspectNearby = () => {
+    if (!nearPhoto) return;
+    openInfraInspectModal(nearPhoto);
+  };
+  inspectBtn?.addEventListener("click", (e) => { e.stopPropagation(); inspectNearby(); });
+  canvas.addEventListener("click", () => inspectNearby());
+
+  function update(dt) {
+    let vx = 0, vy = 0;
+    if (keys.left) vx -= 1;
+    if (keys.right) vx += 1;
+    if (keys.up) vy -= 1;
+    if (keys.down) vy += 1;
+    const mag = Math.hypot(vx, vy) || 1;
+    vx /= mag; vy /= mag;
+
+    player.x = Math.max(20, Math.min(world.width - 20, player.x + vx * player.speed * dt));
+    player.y = Math.max(20, Math.min(world.height - 20, player.y + vy * player.speed * dt));
+    if (vx || vy) player.bob += dt * 12;
+
+    camera.x += ((player.x - canvas.width / 2) - camera.x) * 0.08;
+    camera.y += ((player.y - canvas.height / 2) - camera.y) * 0.08;
+    camera.x = Math.max(0, Math.min(world.width - canvas.width, camera.x));
+    camera.y = Math.max(0, Math.min(world.height - canvas.height, camera.y));
+
+    nearPhoto = null;
+    for (const p of photos) {
+      const cx = p.x + p.w / 2;
+      const cy = p.y + p.h / 2;
+      const d2 = (cx - player.x) ** 2 + (cy - player.y) ** 2;
+      if (d2 < 120 ** 2) {
+        nearPhoto = p;
+        p.found = true;
+        break;
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0b0b10";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // world floor + rooms
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    ctx.fillStyle = "#11131a";
+    ctx.fillRect(0, 0, world.width, world.height);
+    rooms.forEach((r) => {
+      ctx.fillStyle = "#1b1f2a";
+      ctx.fillRect(r.x, r.y, r.w, r.h);
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(r.x, r.y, r.w, r.h);
+      ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.font = "18px Inter";
+      ctx.fillText(r.n, r.x + 14, r.y + 24);
+    });
+
+    // closets/cabinets props
+    rooms.forEach((r, i) => {
+      ctx.fillStyle = i % 2 ? "#2f3443" : "#353a49";
+      ctx.fillRect(r.x + 25, r.y + r.h - 78, 140, 48);
+      ctx.fillRect(r.x + r.w - 185, r.y + 30, 150, 52);
+    });
+
+    // photos
+    photos.forEach((p) => {
+      const onScreen = p.x + p.w > camera.x && p.x < camera.x + canvas.width && p.y + p.h > camera.y && p.y < camera.y + canvas.height;
+      if (!onScreen) return;
+      if (nearPhoto === p) {
+        ctx.strokeStyle = "rgba(255, 210, 80, 0.9)";
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 22;
+        ctx.shadowColor = "rgba(255, 220, 120, 0.9)";
+        ctx.strokeRect(p.x - 4, p.y - 4, p.w + 8, p.h + 8);
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillStyle = "#efefef";
+      ctx.fillRect(p.x, p.y, p.w, p.h);
+      if (p.img && p.img.complete) {
+        ctx.drawImage(p.img, p.x + 6, p.y + 6, p.w - 12, p.h - 12);
+      } else {
+        ctx.fillStyle = "#6b7280";
+        ctx.fillRect(p.x + 6, p.y + 6, p.w - 12, p.h - 12);
+      }
+    });
+
+    // player with bobbing animation
+    const bobY = Math.sin(player.bob) * 4;
+    const pw = 52, ph = 66;
+    if (playerImg.complete) {
+      ctx.drawImage(playerImg, player.x - pw / 2, player.y - ph / 2 + bobY, pw, ph);
+    } else {
+      ctx.fillStyle = "#a78bfa";
+      ctx.beginPath();
+      ctx.arc(player.x, player.y + bobY, player.r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    // darkness and lighting
+    ctx.fillStyle = "rgba(0,0,0,0.78)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = "destination-out";
+    const carveLight = (x, y, r) => {
+      const g = ctx.createRadialGradient(x, y, 10, x, y, r);
+      g.addColorStop(0, "rgba(0,0,0,0.95)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    };
+    lamps.forEach((l) => carveLight(l.x - camera.x, l.y - camera.y, l.r));
+    carveLight(player.x - camera.x, player.y - camera.y, 140);
+    ctx.globalCompositeOperation = "source-over";
+
+    // minimap
+    const mapX = canvas.width - 165, mapY = 14, mapW = 150, mapH = 105;
+    ctx.fillStyle = "rgba(10,10,16,0.75)";
+    ctx.fillRect(mapX, mapY, mapW, mapH);
+    rooms.forEach((r) => {
+      ctx.strokeStyle = "rgba(255,255,255,0.22)";
+      ctx.strokeRect(mapX + (r.x / world.width) * mapW, mapY + (r.y / world.height) * mapH, (r.w / world.width) * mapW, (r.h / world.height) * mapH);
+    });
+    photos.forEach((p) => {
+      ctx.fillStyle = p.found ? "#34d399" : "#9ca3af";
+      ctx.fillRect(mapX + (p.x / world.width) * mapW, mapY + (p.y / world.height) * mapH, 2.6, 2.6);
+    });
+    ctx.fillStyle = "#a78bfa";
+    ctx.beginPath();
+    ctx.arc(mapX + (player.x / world.width) * mapW, mapY + (player.y / world.height) * mapH, 3.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (nearPhoto) {
+      ctx.fillStyle = "rgba(255,255,255,0.9)";
+      ctx.font = "bold 14px Inter";
+      ctx.fillText("Foto encontrada — toca para inspeccionar", 16, canvas.height - 16);
+    }
+  }
+
+  function loop(now) {
+    if (!running) return;
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  function openInfraInspectModal(photo) {
+    let modal = document.getElementById("infra-photo-modal");
+    if (modal) modal.remove();
+    modal = document.createElement("div");
+    modal.id = "infra-photo-modal";
+    modal.className = "infra-photo-modal";
+    modal.innerHTML = `
+      <div class="infra-photo-modal__backdrop"></div>
+      <div class="infra-photo-modal__content">
+        <h4>Escáner infrarrojo</h4>
+        <p>Mueve la linterna para buscar un número oculto.</p>
+        <canvas width="720" height="460" class="infra-photo-canvas"></canvas>
+        <button class="infra-photo-close">Cerrar</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const mCanvas = modal.querySelector(".infra-photo-canvas");
+    const mCtx = mCanvas.getContext("2d");
+    const closeBtn = modal.querySelector(".infra-photo-close");
+    const backdrop = modal.querySelector(".infra-photo-modal__backdrop");
+    const pointer = { x: mCanvas.width * 0.5, y: mCanvas.height * 0.5 };
+
+    const img = new Image();
+    img.src = photo.url;
+    const cluePos = { x: 90 + Math.random() * (mCanvas.width - 180), y: 80 + Math.random() * (mCanvas.height - 160) };
+    let irRunning = true;
+
+    const handleMove = (ev) => {
+      const rect = mCanvas.getBoundingClientRect();
+      const t = ev.touches ? ev.touches[0] : ev;
+      pointer.x = ((t.clientX - rect.left) / rect.width) * mCanvas.width;
+      pointer.y = ((t.clientY - rect.top) / rect.height) * mCanvas.height;
+    };
+    mCanvas.addEventListener("mousemove", handleMove);
+    mCanvas.addEventListener("touchmove", handleMove, { passive: true });
+
+    const closeModal = () => { irRunning = false; modal.remove(); };
+    closeBtn?.addEventListener("click", closeModal);
+    backdrop?.addEventListener("click", closeModal);
+
+    function renderIR() {
+      if (!irRunning) return;
+      mCtx.fillStyle = "#06070c";
+      mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+      if (img.complete) {
+        mCtx.drawImage(img, 0, 0, mCanvas.width, mCanvas.height);
+      }
+
+      if (photo.clue) {
+        mCtx.save();
+        mCtx.font = "bold 110px Inter";
+        mCtx.fillStyle = "rgba(255, 60, 80, 0.45)";
+        mCtx.fillText(photo.clue, cluePos.x, cluePos.y);
+        mCtx.restore();
+      }
+
+      mCtx.fillStyle = "rgba(0,0,0,0.92)";
+      mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+      mCtx.globalCompositeOperation = "destination-out";
+      const rg = mCtx.createRadialGradient(pointer.x, pointer.y, 18, pointer.x, pointer.y, 128);
+      rg.addColorStop(0, "rgba(0,0,0,1)");
+      rg.addColorStop(1, "rgba(0,0,0,0)");
+      mCtx.fillStyle = rg;
+      mCtx.beginPath();
+      mCtx.arc(pointer.x, pointer.y, 128, 0, Math.PI * 2);
+      mCtx.fill();
+      mCtx.globalCompositeOperation = "source-over";
+
+      requestAnimationFrame(renderIR);
+    }
+    requestAnimationFrame(renderIR);
+  }
+
+  window.__houseGame26Cleanup = () => {
+    running = false;
+    window.removeEventListener("keydown", keyDown);
+    window.removeEventListener("keyup", keyUp);
+  };
+}
+
 // ══════════════════════════════════════════
 // MINI-JUEGO: VUELO DE RECUERDOS (ENHANCED)
 // ══════════════════════════════════════════
@@ -1105,6 +1459,12 @@ function renderGameMemory(container, memory) {
     function spawnCoin() {
         const y = 30 + Math.random() * (canvas.height - 60);
         coinsArray.push({ x: canvas.width + Math.random() * 50, y, r: 18, hitR: 28, collected: false, glow: 0 }); 
+    }
+
+    function spawnPowerup() {
+        const y = 40 + Math.random() * (canvas.height - 80);
+        const type = Math.random() < 0.5 ? 'speed' : 'invert';
+        powerups.push({ x: canvas.width + 20, y, r: 13, type, glow: Math.random() * Math.PI * 2 });
     }
 
     function spawnPowerup() {
@@ -1235,6 +1595,39 @@ function renderGameMemory(container, memory) {
             if (p.x + p.r < -10) powerups.splice(i, 1);
         }
 
+        // Draw + collide powerups
+        for (let i = powerups.length - 1; i >= 0; i--) {
+            const p = powerups[i];
+            p.x -= gameSpeed;
+            p.glow = (p.glow + 0.1) % (Math.PI * 2);
+            const color = p.type === 'speed' ? '#22c55e' : '#3b82f6';
+
+            ctx.save();
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.restore();
+
+            const pdx = gPlayer.x - p.x;
+            const pdy = gPlayer.y - p.y;
+            if ((pdx * pdx + pdy * pdy) < (gPlayer.r + p.r) * (gPlayer.r + p.r)) {
+                if (p.type === 'speed') {
+                    activeEffects.speedUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#22c55e', 10);
+                } else {
+                    activeEffects.invertUntil = nowMs + EFFECT_DURATION;
+                    addGParticle(p.x, p.y, '#3b82f6', 10);
+                }
+                powerups.splice(i, 1);
+                continue;
+            }
+
+            if (p.x + p.r < -10) powerups.splice(i, 1);
+        }
+
         // Draw player
         gPlayer.trail.push({ x: gPlayer.x, y: gPlayer.y });
         if (gPlayer.trail.length > 6) gPlayer.trail.shift();
@@ -1262,6 +1655,11 @@ function renderGameMemory(container, memory) {
         }
 
         // Score
+        ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+        ctx.fillText('Puntos: ' + score, canvas.width - 10, 10);
+        if (speedBoostActive) ctx.fillText('Turbo activo', canvas.width - 10, 28);
+        if (invertActive) ctx.fillText('Gravedad invertida', canvas.width - 10, 46);
         ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'right'; ctx.textBaseline = 'top';
         ctx.fillText('Puntos: ' + score, canvas.width - 10, 10);
@@ -1416,6 +1814,17 @@ function openShopModal() {
             }
         });
     });
+}
+
+function areAllDecoysUnlocked() {
+  return SHOP_DECOY_IDS.every((id) => unlockedShopItems.includes(id));
+}
+
+function getVisibleShopItems() {
+  return SHOP_PHOTOS.filter((item) => {
+    if (!item.revealAfterDecoys) return true;
+    return areAllDecoysUnlocked();
+  });
 }
 
 function areAllDecoysUnlocked() {
@@ -3145,7 +3554,7 @@ function unlockMemory(date) {
     card.innerHTML = ""; // Clear
 
     // Rebuild header
-    const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", book: "📖", book2: "📖", quest: "🗝️", safe: "🧰" };
+    const icons = { text: "✍️", photo: "📷", video: "🎬", audio: "🎵", game: "🎮", housegame: "🏚️", book: "📖", book2: "📖", quest: "🗝️", safe: "🧰" };
     const dateObj = new Date(date + "T00:00:00");
     const formattedDate = dateObj.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
 

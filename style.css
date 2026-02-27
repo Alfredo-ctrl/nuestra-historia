@@ -2915,6 +2915,16 @@ body.gallery-open {
   font-weight: 600;
 }
 
+.book-secret-clue {
+  display: inline-block;
+  font-size: 0.52em;
+  line-height: 1;
+  vertical-align: super;
+  margin-left: 1px;
+  color: rgba(58, 37, 23, 0.45);
+  font-weight: 600;
+}
+
 /* ── Drop Cap ── */
 .book-dropcap {
   float: left; font-family: 'Playfair Display', serif;
@@ -3070,6 +3080,435 @@ body.gallery-open {
   box-shadow: 0 8px 30px rgba(155, 89, 182, 0.5);
 }
 .book2-open-btn:active { transform: scale(0.97); }
+
+/* ── Quest memory (22 feb) ── */
+.quest-memory {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.quest-memory__text {
+  color: var(--text-secondary);
+  font-size: 0.98rem;
+}
+
+.quest-start-btn {
+  justify-self: start;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 14px;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, rgba(123, 92, 255, 0.2), rgba(34, 197, 94, 0.2));
+  color: #fff;
+  font-weight: 700;
+}
+
+.quest-sequence-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 17000;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.quest-sequence-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.quest-sequence-overlay__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 0, 12, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.quest-sequence-overlay__content {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 620px);
+  padding: 1.2rem;
+}
+
+.quest-sequence-title {
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  color: #fff;
+  letter-spacing: 0.03em;
+  animation: questTextPulse 1.7s ease;
+}
+
+.quest-tutorial-sheet {
+  margin-top: 1rem;
+  border-radius: 16px;
+  background: #fff7e8;
+  color: #35241a;
+  padding: 1rem;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+  transform: translateY(14px) scale(0.97);
+  opacity: 0;
+  transition: all 0.35s ease;
+}
+
+.quest-sequence-overlay.show-sheet .quest-tutorial-sheet {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+
+.quest-tutorial-sheet h3 {
+  margin-bottom: 0.5rem;
+  font-family: var(--font-display);
+}
+
+.quest-tutorial-sheet p {
+  line-height: 1.7;
+}
+
+.quest-tutorial-close {
+  margin-top: 0.8rem;
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  background: #7b5cff;
+  color: white;
+  font-weight: 600;
+}
+
+@keyframes questTextPulse {
+  0% { opacity: 0; transform: scale(0.8); }
+  35% { opacity: 1; transform: scale(1.08); }
+  70% { transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ── Safe memory (24 feb) ── */
+.safe-memory {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.safe-drawing {
+  width: min(100%, 260px);
+  height: 170px;
+  margin: 0 auto;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #4b5563, #1f2937);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  box-shadow: inset 0 0 22px rgba(0, 0, 0, 0.35);
+  transition: transform 0.5s ease;
+}
+
+.safe-drawing__door {
+  position: absolute;
+  inset: 16px;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: linear-gradient(145deg, #6b7280, #374151);
+  transform-origin: left center;
+  transition: transform 0.7s ease;
+}
+
+.safe-drawing__dial {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 54px;
+  height: 54px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #111827;
+  display: grid;
+  place-items: center;
+  color: #d1d5db;
+}
+
+.safe-drawing--open .safe-drawing__door { transform: perspective(500px) rotateY(-95deg); }
+.safe-drawing--shake { animation: safeShake 0.35s ease; }
+
+.safe-memory__text,
+.safe-feedback {
+  color: var(--text-secondary);
+}
+
+.safe-inputs {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.safe-digit {
+  width: 44px;
+  height: 44px;
+  text-align: center;
+  font-size: 1.2rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.safe-open-btn {
+  justify-self: start;
+  border: none;
+  border-radius: 12px;
+  padding: 0.65rem 1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  color: white;
+}
+
+.safe-open-btn:disabled,
+.safe-digit:disabled { opacity: 0.6; }
+
+.safe-open-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 18000;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 5, 20, 0.78);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.safe-open-overlay.active {
+  opacity: 1;
+}
+
+.safe-open-overlay__content {
+  text-align: center;
+  color: white;
+  animation: safePop 0.5s ease;
+}
+
+.safe-open-burst {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+@keyframes safeShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+@keyframes safePop {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ── Shop card items (new clue cards) ── */
+.shop-card-preview,
+.details-card,
+.reveal-card {
+  min-height: 120px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, #fff7e8, #f7e3c4);
+  color: #3d2a1b;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.85rem;
+  font-weight: 700;
+}
+
+.shop-card-preview.blur,
+.details-card.blur { filter: blur(4px); }
+
+/* ── House mystery game (26 feb) ── */
+.house-game-wrap {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.house-game-hint {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.house-game-stage {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: #09090f;
+}
+
+.house-game-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 280px;
+  max-height: 65vh;
+  object-fit: contain;
+  background: #09090f;
+}
+
+.house-game-ui {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.house-game-chip {
+  font-size: 0.78rem;
+  color: #e5e7eb;
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  padding: 0.35rem 0.55rem;
+}
+
+.house-game-action {
+  cursor: pointer;
+  text-align: left;
+}
+
+.house-game-touch {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.45rem;
+}
+
+.house-game-touch button {
+  border: 1px solid rgba(255,255,255,0.24);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  padding: 0.45rem 0;
+  font-weight: 700;
+}
+
+.infra-photo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 25000;
+  display: grid;
+  place-items: center;
+}
+
+.infra-photo-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  backdrop-filter: blur(4px);
+}
+
+.infra-photo-modal__content {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 760px);
+  background: #0d111c;
+  border-radius: 14px;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.infra-photo-modal__content h4 {
+  margin-bottom: 0.35rem;
+}
+
+.infra-photo-modal__content p {
+  color: rgba(255,255,255,0.8);
+  font-size: 0.9rem;
+  margin-bottom: 0.7rem;
+}
+
+.infra-photo-canvas {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.15);
+  display: block;
+}
+
+.infra-photo-close {
+  margin-top: 0.75rem;
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  background: #8b5cf6;
+  color: white;
+  font-weight: 700;
+}
+
+/* ── Site entrance animation ── */
+.site-entry-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+
+.site-entry-overlay.is-visible { opacity: 1; }
+.site-entry-overlay.is-leaving { opacity: 0; }
+
+.site-entry-overlay__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(123, 92, 255, 0.35), transparent 35%),
+    radial-gradient(circle at 80% 70%, rgba(34, 197, 94, 0.22), transparent 35%),
+    rgba(5, 3, 16, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.site-entry-overlay__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.site-entry-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 7vw, 4rem);
+  color: #fff;
+  text-shadow: 0 0 40px rgba(139, 92, 246, 0.55);
+  animation: siteEntryPop 1.15s ease both;
+}
+
+.site-entry-subtitle {
+  margin-top: 0.6rem;
+  font-size: clamp(0.95rem, 2.6vw, 1.25rem);
+  color: rgba(255, 255, 255, 0.88);
+  animation: siteEntryFade 1.35s ease 0.2s both;
+}
+
+.site-entry-star {
+  position: absolute;
+  color: rgba(255,255,255,0.85);
+  font-size: clamp(0.8rem, 2vw, 1.3rem);
+  animation: siteEntryStar 1.8s ease-in-out var(--d) infinite alternate;
+}
+
+@keyframes siteEntryPop {
+  0% { opacity: 0; transform: scale(0.65) translateY(18px); }
+  65% { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes siteEntryFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes siteEntryStar {
+  from { opacity: 0.2; transform: scale(0.75) rotate(0deg); }
+  to { opacity: 1; transform: scale(1.15) rotate(18deg); }
+}
 
 /* ── Quest memory (22 feb) ── */
 .quest-memory {
